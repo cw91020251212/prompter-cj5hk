@@ -559,8 +559,8 @@
       display: flex;
       justify-content: space-between;
       width: 100%;
-      padding: 0 6px;
-      margin: 2px 0;
+      padding: 0 10px;
+      margin: 6px 0 2px;
       flex: 0 0 auto;
     }
     .typing-nav button {
@@ -584,7 +584,10 @@
     .typing-nav button:hover:not(:disabled) { background: rgba(255,255,255,0.16); border-color: rgba(147,197,253,0.55); }
     .typing-display-area{
       width:100%;
-      flex: 1 1 auto;
+      /* 上面顯示中文唔需要霸咁多位：讓出更多高度俾下面解碼 */
+      flex: 0 0 auto;
+      height: 34vh;
+      max-height: 340px;
       display:flex;
       align-items:center;
       justify-content:center;
@@ -593,16 +596,17 @@
     .typing-footer {
       background: #0f172a;
       border-top: 2px solid #334155;
-      padding: 14px 12px 10px;
+      /* 底部唔好咁貼邊：加大 bottom padding，亦照顧 iPhone safe-area */
+      padding: 14px 12px calc(22px + env(safe-area-inset-bottom, 0px));
       width: 100%;
       border-radius: 0;
       display: flex;
       flex-direction: column;
       align-items: center;
       margin-top: 6px;
-      min-height: 320px;
+      min-height: 360px;
       flex: 0 0 auto;
-      max-height: 52vh;
+      max-height: 62vh;
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
     }
@@ -1857,13 +1861,17 @@ if (!showRad && charData && method === 'cangjie') {
             <div class="typing-display-area" id="typingDisplayArea">
               <div class="typing-char" id="typingChar">${escapeHtml(char)}</div>
             </div>
+            <div class="typing-nav" aria-label="上一個/下一個">
+              <button id="prevChar" title="上一個">◀</button>
+              <button id="nextChar" title="下一個">▶</button>
+            </div>
             <div class="typing-footer">
               <!-- 下半部維持原本功能鍵（完全唔郁） -->
-              <div class="toggle-group" style="max-width:300px;margin-bottom:10px;">
+              <div class="toggle-group" style="max-width:360px;margin-bottom:12px;">
                 <button id="toggleMethodQuick" class="${method==='quick'?'active':''}">速成碼</button>
                 <button id="toggleMethodCangjie" class="${method==='cangjie'?'active':''}">倉頡碼</button>
               </div>
-              <div class="toggle-group" style="max-width:300px;margin-bottom:8px;">
+              <div class="toggle-group" style="max-width:360px;margin-bottom:10px;">
                 <button id="toggleRadicalOff" class="${!showRad?'active':''}">字母(A-Z)</button>
                 <button id="toggleRadicalOn" class="${showRad?'active':''}">字根提示(日月金木…)</button>
               </div>
