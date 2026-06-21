@@ -428,6 +428,24 @@
       align-items: center;
       margin-bottom: 10px; /* 縮細上方工具列，留位俾解碼 */
     }
+
+    /* 左上角離開（✕） */
+    .typing-exit{
+      position: absolute;
+      top: calc(env(safe-area-inset-top, 0px) + 10px);
+      left: calc(env(safe-area-inset-left, 0px) + 10px);
+      width: 46px;
+      height: 46px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.10);
+      border: 1px solid rgba(148,163,184,0.35);
+      color: #f8fafc;
+      font-size: 1.6rem;
+      font-weight: 900;
+      cursor: pointer;
+      z-index: 5;
+    }
+    .typing-exit:hover{ background: rgba(255,255,255,0.18); border-color: rgba(147,197,253,0.55); }
     .typing-top button {
       background: rgba(255,255,255,0.08);
       border: none;
@@ -454,18 +472,49 @@
     }
     /* 上面示範字：縮返細少少，重點放落下邊解碼 */
     .typing-char {
-      /* 走馬燈字：中間最清晰，前後較細/較淡 */
-      font-size: calc(clamp(3.4rem, 9.5vw, 6.8rem) * var(--ui-scale));
+      /* 大字：位置固定置中（唔會因為細字而上移） */
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: calc(clamp(3.9rem, 10.2vw, 7.2rem) * var(--ui-scale));
       font-weight: 900;
       line-height: 0.98;
-      color: white;
+      color: #f8fafc;
       text-shadow: 0 8px 30px rgba(0,0,0,0.5);
       display: flex;
       align-items: center;
       justify-content: center;
       padding: 2px 0 0;
       user-select: none;
+      cursor: pointer;
     }
+
+    /* 大字下面：原文提示（灰色、細、會跟住當前字置中） */
+    .typing-context{
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      /* 大字固定置中；底下一行放喺大字下方約一個字高度 */
+      transform: translate(-50%, 0);
+      margin-top: 1.05em;
+      width: 100%;
+      max-width: 92vw;
+      padding: 6px 6px;
+      color: #94a3b8;
+      /* 大約係大字 2/3 左右（手機易睇） */
+      font-size: calc(clamp(2.4rem, 6.2vw, 3.8rem) * var(--ui-scale));
+      line-height: 1.15;
+      white-space: nowrap;
+      overflow: hidden;
+      text-align: center;
+      user-select: none;
+    }
+    .typing-context .tctx-ch{ display:inline-block; opacity: 0.55; padding: 0 0.10em; }
+    .typing-context .tctx-ch.active{ opacity: 0.98; color:#cbd5e1; text-decoration: underline; text-underline-offset: 6px; }
+    .typing-context::-webkit-scrollbar{ display:none; }
+    .typing-context .tctx-ch{ opacity: 0.55; }
+    .typing-context .tctx-ch.active{ opacity: 0.95; color:#94a3b8; text-decoration: underline; text-underline-offset: 4px; }
 
     /* 走馬燈/coverflow：顯示前後字（2、4更細更淡） */
     /* 新策略：上面一條「文章行」— 只有中間字清晰，其餘全朦/灰 */
@@ -563,14 +612,16 @@
       margin: 6px 0 2px;
       flex: 0 0 auto;
     }
+    /* 左右箭嘴：用灰色三角形，唔要圓圈 */
     .typing-nav button {
-      background: rgba(255,255,255,0.08);
-      border: 1px solid rgba(148,163,184,0.35);
-      border-radius: 50%;
-      width: 54px;
-      height: 54px;
-      color: #f8fafc;
-      font-size: 2.6rem;
+      background: transparent;
+      border: none;
+      border-radius: 0;
+      width: auto;
+      height: auto;
+      padding: 4px 8px;
+      color: #94a3b8;
+      font-size: 2.4rem;
       font-weight: 900;
       cursor: pointer;
       transition: 0.2s;
@@ -578,19 +629,17 @@
       align-items: center;
       justify-content: center;
       line-height: 1;
-      text-shadow: 0 6px 18px rgba(0,0,0,0.45);
+      text-shadow: none;
     }
     .typing-nav button:disabled { opacity: 0.15; cursor: default; }
-    .typing-nav button:hover:not(:disabled) { background: rgba(255,255,255,0.16); border-color: rgba(147,197,253,0.55); }
+    .typing-nav button:hover:not(:disabled) { color: #cbd5e1; }
     .typing-display-area{
       width:100%;
-      /* 上面顯示中文唔需要霸咁多位：讓出更多高度俾下面解碼 */
+      /* 上面顯示中文：大字位置固定置中；細字（原句）放大字下邊 */
       flex: 0 0 auto;
       height: 34vh;
       max-height: 340px;
-      display:flex;
-      align-items:center;
-      justify-content:center;
+      position: relative;
       padding: 8px 0 0;
     }
     .typing-footer {
@@ -1237,6 +1286,8 @@ function getCharCodes(char) {
       inputMethod: 'cangjie',
       showRadical: false,
       textArray: [],
+      textArrayRaw: [],
+      textIndexMap: [],
 
       // ---------- 英文發音（只限「倉頡碼 + 字母(A-Z)」模式） ----------
       // 預設「關喇叭／靜音」：開機唔會自動出聲
@@ -1250,7 +1301,10 @@ function getCharCodes(char) {
       // ---------- 走馬燈滑動控制 ----------
       isSliding: false,
       slideToIndex: null,
-      slideTimer: null
+      slideTimer: null,
+
+      // 提詞機頁：處理手機 Back（popstate）用
+      _typingHistoryPushed: false
     };
 
     try {
@@ -1283,6 +1337,15 @@ function getCharCodes(char) {
         }
       } catch(e) {}
     })();
+
+    // 手機 Back（popstate）：喺提詞機畫面就退返總目錄，而唔係跳出成個網頁
+    window.addEventListener('popstate', () => {
+      if (state.isTyping) {
+        // Back 係用嚟離開提詞機
+        state._typingHistoryPushed = false;
+        exitTyping(true);
+      }
+    });
 
     function render() {
       if (state.isTyping) {
@@ -1519,7 +1582,7 @@ function getCharCodes(char) {
 
       let html = `
         <div class="app ${active==='dict'?'mode-dict':''}">
-          ${active==='prompter' ? getStatusBanner() : ''}
+          <!-- 已按要求：取消頂部綠色狀態橫幅（status-banner） -->
           ${active==='prompter' ? `
           <div class="tabs">
             <button class="${active==='prompter'?'active':''}" data-tab="prompter">📖 提詞機</button>
@@ -1574,6 +1637,7 @@ function getCharCodes(char) {
 
       html += `</div></div>`;
       root.innerHTML = html;
+      // 折衝方案：底下一行係「分頁顯示」，唔需要再做對中滾動
 
       // banner 自檢
       document.getElementById('runSelfTestBtn')?.addEventListener('click', (e)=>{
@@ -1697,12 +1761,31 @@ function getCharCodes(char) {
               return;
             }
           }
-          const arr = state.inputText.replace(/\s+/g,'').split('');
+          // 保留原句（含空格/標點）作為底下灰色提示；但提詞機本身仍只逐個「非空白字」前進
+          const raw = Array.from(state.inputText);
+          const arr = [];
+          const map = [];
+          raw.forEach((ch, i) => {
+            if (String(ch).trim() === '') return;
+            arr.push(ch);
+            map.push(i);
+          });
           if (arr.length === 0) return;
           state.textArray = arr;
+          state.textArrayRaw = raw;
+          state.textIndexMap = map;
           state.currentIndex = 0;
           state.isTyping = true;
           state.showSaveDialog = false;
+
+          // 手機 Back 鍵：入提詞機時 push 一層 history，Back 先退返總目錄
+          try {
+            if (!state._typingHistoryPushed) {
+              history.pushState({ view: 'typing' }, '', '#typing');
+              state._typingHistoryPushed = true;
+            }
+          } catch(e) {}
+
           render();
         });
       }
@@ -1768,6 +1851,96 @@ function getCharCodes(char) {
     // ---------- 打字模式 (同上，不重複寫，直接複製之前嘅) ----------
     // 為咗保持答案長度合理，呢度我用同之前一樣嘅邏輯，但由於重複，我簡化寫法。
     // 但為咗確保運作，我會 include 完整嘅函數。
+
+    // 折衝方案：底下一行一次顯示 N 個字；每到下一個「頁」先整行換字
+    const CONTEXT_WINDOW_SIZE = 10;
+
+    function renderTypingContextHtml() {
+      const arr = state.textArray || [];
+      const total = arr.length;
+      const idx = state.currentIndex || 0;
+      if (!total) return '';
+
+      const win = CONTEXT_WINDOW_SIZE;
+      const start = Math.floor(idx / win) * win;
+      const end = Math.min(total, start + win);
+      const pieces = [];
+      for (let i = start; i < end; i++) {
+        const ch = arr[i];
+        const safe = escapeHtml(ch);
+        pieces.push(`<span class="tctx-ch ${i === idx ? 'active' : ''}" data-idx="${i}">${safe}</span>`);
+      }
+      return pieces.join('');
+    }
+
+    // 以下舊「對中滾動/translate」方案保留但停用（避免手機唔郁）
+    function getCurrentTranslateX(el) {
+      try {
+        const tr = getComputedStyle(el).transform;
+        if (!tr || tr === 'none') return 0;
+        const m = tr.match(/matrix\(([^)]+)\)/);
+        if (m) {
+          const parts = m[1].split(',').map(s=>parseFloat(s.trim()));
+          // matrix(a,b,c,d,tx,ty)
+          return parts[4] || 0;
+        }
+        const m3 = tr.match(/matrix3d\(([^)]+)\)/);
+        if (m3) {
+          const parts = m3[1].split(',').map(s=>parseFloat(s.trim()));
+          return parts[12] || 0;
+        }
+      } catch(e) {}
+      return 0;
+    }
+
+    function getTypingContextTranslateX() {
+      const box = document.getElementById('typingContext');
+      const inner = document.getElementById('typingContextInner');
+      if (!box || !inner) return null;
+      const active = inner.querySelector('.tctx-ch.active');
+      if (!active) return null;
+
+      const boxRect = box.getBoundingClientRect();
+      const aRect = active.getBoundingClientRect();
+      const boxCenter = boxRect.left + (boxRect.width / 2);
+      const aCenter = aRect.left + (aRect.width / 2);
+      const delta = boxCenter - aCenter;
+
+      const cur = getCurrentTranslateX(inner);
+      let dx = cur + delta;
+
+      // clamp：避免移到見晒空白
+      const innerWidth = inner.getBoundingClientRect().width;
+      const minDx = boxRect.width - innerWidth;
+      const maxDx = 0;
+      if (dx < minDx) dx = minDx;
+      if (dx > maxDx) dx = maxDx;
+      return dx;
+    }
+
+    function updateTypingContextScroll() {
+      const box = document.getElementById('typingContext');
+      const inner = document.getElementById('typingContextInner');
+      if (!box || !inner) return;
+      const dx = getTypingContextTranslateX();
+      if (dx === null) return;
+
+      // 先關掉動畫，避免有些環境忽略 transform 更新
+      inner.style.transition = 'none';
+      inner.style.transform = `translateX(${dx}px)`;
+      // 強迫 reflow，再恢復動畫
+      void inner.offsetHeight;
+      inner.style.transition = 'transform 220ms cubic-bezier(0.22, 1, 0.36, 1)';
+
+      // Debug：如果網址帶 #debug 就顯示數值
+      if (location.hash.includes('debug')) {
+        let el = document.getElementById('debugLine');
+        if (el) {
+          const innerW = inner.getBoundingClientRect().width;
+          el.textContent = `dx=${dx.toFixed(1)} boxW=${box.getBoundingClientRect().width.toFixed(1)} innerW=${innerW.toFixed(1)}`;
+        }
+      }
+    }
 
     function renderTypingMode() {
       const arr = state.textArray;
@@ -1858,8 +2031,11 @@ if (!showRad && charData && method === 'cangjie') {
       const html = `
         <div class="typing-overlay" id="typingOverlay">
           <div class="typing-card simple-single-char">
+            <button class="typing-exit" id="exitTyping" title="離開">✕</button>
+            ${location.hash.includes('debug') ? '<div id="debugLine" style="position:absolute;top:10px;left:70px;color:#fbbf24;font-weight:900;font-size:12px;z-index:6;">debug</div>' : ''}
             <div class="typing-display-area" id="typingDisplayArea">
               <div class="typing-char" id="typingChar">${escapeHtml(char)}</div>
+              <div class="typing-context" id="typingContext" aria-label="原文提示">${renderTypingContextHtml()}</div>
             </div>
             <div class="typing-nav" aria-label="上一個/下一個">
               <button id="prevChar" title="上一個">◀</button>
@@ -2015,7 +2191,14 @@ if (!showRad && charData && method === 'cangjie') {
         startSlide(state.currentIndex - 1);
       }
     }
-    function exitTyping() {
+    function exitTyping(skipHistory=false) {
+      // 如果係用戶按左上角 ✕ 或 Escape：先用 history.back() 退返總目錄
+      if (!skipHistory && state._typingHistoryPushed && location.hash === '#typing') {
+        state._typingHistoryPushed = false;
+        try { history.back(); } catch(e) {}
+        return;
+      }
+
       stopSpeaking();
       state.isTyping = false;
       state.showSaveDialog = false;
