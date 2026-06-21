@@ -2076,7 +2076,7 @@ function getCharCodes(char) {
           }).join('');
 
           // 標點符號（ZX..）強制一行顯示 4 鍵，避免你以為只得 2 鍵
-          if (charData.isPunct) {
+          if (charData.isPunct || codes.length <= 2) {
             codeHtml = `<div class="code-blocks">${headHtml}${tailHtml}</div>`;
           } else {
             codeHtml = `
@@ -2118,11 +2118,26 @@ if (!showRad && charData && method === 'cangjie') {
   }
 }
 
-      // 已按要求：取消所有完成彈窗／過場
+      // 修復：重新加入儲存提示對話框
       let dialogHtml = '';
+      if (state.showSaveDialog) {
+        dialogHtml = `
+          <div class="dialog-overlay">
+            <div class="dialog-box">
+              <div class="icon">💾</div>
+              <h2>讀完啦！</h2>
+              <p style="color:#94a3b8;margin-bottom:20px;">想唔想儲存呢段文章落草稿？</p>
+              <button id="saveAndClear" class="save-btn">儲存並結束</button>
+              <button id="clearOnly" class="clear-btn">唔儲存，直接結束</button>
+              <button onclick="state.showSaveDialog=false;render();" style="background:transparent;color:#64748b;box-shadow:none;">返去睇多次</button>
+            </div>
+          </div>
+        `;
+      }
 
       const html = `
         <div class="typing-overlay" id="typingOverlay">
+          ${dialogHtml}
           <div class="typing-card simple-single-char">
             <button class="typing-exit" id="exitTyping" title="離開">✕</button>
             ${location.hash.includes('debug') ? '<div id="debugLine" style="position:absolute;top:10px;left:70px;color:#fbbf24;font-weight:900;font-size:12px;z-index:6;">debug</div>' : ''}
@@ -2190,11 +2205,20 @@ if (!showRad && charData && method === 'cangjie') {
         goNext();
       });
 
-      // 撳畫面任何位置都去下一個字（但唔影響按鈕操作）
+      // 撳畫面任何位置都去下一個字（但唔影響按鈕同設定面板操作）
       document.getElementById('typingOverlay')?.addEventListener('click', (e) => {
         if (state.showSaveDialog) return;
         const t = e.target;
-        if (t && (t.closest('button') || t.closest('.toggle-group') || t.closest('.toggle-bar') || t.closest('.qchip'))) return;
+        // 修復：豁免 TTS 設定面板、input 同 select，避免撳設定時跳去下一字
+        if (t && (
+          t.closest('button') || 
+          t.closest('.toggle-group') || 
+          t.closest('.toggle-bar') || 
+          t.closest('.qchip') || 
+          t.closest('.tts-float-panel') ||
+          t.tagName === 'INPUT' ||
+          t.tagName === 'SELECT'
+        )) return;
         goNext();
       });
       document.getElementById('prevChar')?.addEventListener('click', goPrev);
@@ -2267,16 +2291,16 @@ if (!showRad && charData && method === 'cangjie') {
     }
 
     function goNext() {
-      // 已按要求：上半部取消滑動/過場；最後一個字後直接循環
       if (state.currentIndex < state.textArray.length - 1) {
         state.currentIndex++;
+        state.showSaveDialog = false;
       } else {
-        state.currentIndex = 0;
+        // 讀完最後一個字，彈出儲存提示
+        state.showSaveDialog = true;
       }
       state.isSliding = false;
       state.slideToIndex = null;
       if (state.slideTimer) { clearTimeout(state.slideTimer); state.slideTimer = null; }
-      state.showSaveDialog = false;
       render();
     }
     function goPrev() {
