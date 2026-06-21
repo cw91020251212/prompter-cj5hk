@@ -503,7 +503,7 @@
       padding: 6px 6px;
       color: #94a3b8;
       /* 大約係大字 2/3 左右（手機易睇） */
-      font-size: calc(clamp(2.4rem, 6.2vw, 3.8rem) * var(--ui-scale));
+      font-size: calc(clamp(2.0rem, 5.2vw, 3.2rem) * var(--ui-scale));
       line-height: 1.15;
       white-space: nowrap;
       overflow: hidden;
@@ -1647,10 +1647,27 @@ function getCharCodes(char) {
 
       html += `</div></div>`;
       root.innerHTML = html;
-      // 折衝方案：先計算畫面放得落幾多個字（不同手機會不同）
-      // 注意：compute 會觸發 render() 一次，用嚟套用新 window size
-      setTimeout(computeContextWindowSize, 0);
-      setTimeout(computeContextWindowSize, 80);
+
+      // 入打字畫面先計一次：呢部機/呢個字體下，一行放得落幾多個字（N）
+      setTimeout(() => computeContextWindowSize(), 0);
+      setTimeout(() => computeContextWindowSize(), 120);
+
+      // 尺寸改變先再計（唔係每次換字都計）
+      try {
+        if (!state._tctxResizeObserver) {
+          const ro = new ResizeObserver(() => {
+            clearTimeout(state._tctxResizeDebounce);
+            state._tctxResizeDebounce = setTimeout(() => computeContextWindowSize(), 180);
+          });
+          const box = document.getElementById('typingContext');
+          if (box) ro.observe(box);
+          state._tctxResizeObserver = ro;
+        } else {
+          const box = document.getElementById('typingContext');
+          if (box) state._tctxResizeObserver.observe(box);
+        }
+      } catch(e) {}
+      // 折衝方案：每行顯示幾多字（N）只喺「入打字畫面」或「畫面尺寸/字體變更」先計一次
 
       // banner 自檢
       document.getElementById('runSelfTestBtn')?.addEventListener('click', (e)=>{
@@ -1868,49 +1885,67 @@ function getCharCodes(char) {
     // 折衝方案（動態視窗）：底下一行一次顯示「畫面放得落」咁多個字；到下一頁先整行換
     function getContextWindowSize() {
       const v = Number(state.contextWindowSize || 0);
-      return (v && v > 0) ? v : 10;
+      if (v && v > 0) return v;
+      // fallback：如果未計到，就用當前容器寬度 + 字體 size 做一次估算（唔寫死 10）
+      const box = document.getElementById('typingContext');
+      if (box) {
+        const fs = parseFloat(getComputedStyle(box).fontSize) || 16;
+        const usable = Math.max(0, box.clientWidth - 12);
+        // 保守估算：1 字 ≈ 1em + 左右 padding(0.2em)
+        const per = fs * 1.20;
+        const safety = Math.max(10, per * 0.45);
+        let est = Math.floor((usable - safety) / per);
+        est = Math.max(3, Math.min(24, est || 3));
+        return est;
+      }
+      return 10;
     }
 
     function computeContextWindowSize() {
       const box = document.getElementById('typingContext');
-      if (!box) return;
+      if (!box) return null;
 
-      // 建一個隱形量度 span（同一樣字體/大小）
+      // 建一個隱形量度容器（要連同 .tctx-ch 嘅 padding 一齊量，否則會「計得太盡」而出現半個字被截）
       let m = document.getElementById('tctxMeasure');
       if (!m) {
-        m = document.createElement('span');
+        m = document.createElement('div');
         m.id = 'tctxMeasure';
         m.style.position = 'absolute';
         m.style.visibility = 'hidden';
         m.style.whiteSpace = 'nowrap';
         m.style.left = '-9999px';
         m.style.top = '-9999px';
-        // 跟 typing-context 一樣字體
-        m.style.fontSize = getComputedStyle(box).fontSize;
-        m.style.fontFamily = getComputedStyle(box).fontFamily;
         document.body.appendChild(m);
-      } else {
-        m.style.fontSize = getComputedStyle(box).fontSize;
-        m.style.fontFamily = getComputedStyle(box).fontFamily;
       }
 
-      // 用 10 個「最常見寬度」字做樣本量度平均寬度
-      const sampleLen = 10;
-      m.textContent = '日日日日日日日日日'.slice(0, sampleLen);
+      // 模擬 typing-context 的字體設定（最少要一致：font-size / family / letter-spacing）
+      const cs = getComputedStyle(box);
+      m.style.fontSize = cs.fontSize;
+      m.style.fontFamily = cs.fontFamily;
+      m.style.letterSpacing = cs.letterSpacing;
+      m.style.fontWeight = cs.fontWeight;
+
+      const sampleLen = 12;
+      // 用 span.tctx-ch 去量，確保 padding (0.10em) 都計埋
+      m.innerHTML = Array.from({length: sampleLen}).map(() => `<span class="tctx-ch">日</span>`).join('');
       const sampleW = m.getBoundingClientRect().width || 0;
-      if (!sampleW) return;
+      if (!sampleW) return null;
       const avg = sampleW / sampleLen;
 
       const usable = Math.max(0, box.clientWidth - 12); // 扣少少 padding
-      let win = Math.floor(usable / avg);
+      // 保守啲：留一截安全邊（避免最後一個字貼邊/被截一半）
+      const safety = Math.max(10, avg * 0.45);
+      let win = Math.floor((usable - safety) / avg);
       // 合理範圍：最少 3 個，最多 24 個
       win = Math.max(3, Math.min(24, win));
 
       if (win !== state.contextWindowSize) {
         state.contextWindowSize = win;
-        // 重新 render 一次，套用新視窗大小
-        render();
+        // 只更新底下灰色原文提示，避免每個字都觸發 full render
+        const ctx = document.getElementById('typingContext');
+        if (ctx) ctx.innerHTML = renderTypingContextHtml();
       }
+      return win;
     }
 
     function renderTypingContextHtml() {
