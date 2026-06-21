@@ -1288,6 +1288,7 @@ function getCharCodes(char) {
       textArray: [],
       textArrayRaw: [],
       textIndexMap: [],
+      contextWindowSize: 0,
 
       // ---------- 英文發音（只限「倉頡碼 + 字母(A-Z)」模式） ----------
       // 預設「關喇叭／靜音」：開機唔會自動出聲
@@ -1346,6 +1347,15 @@ function getCharCodes(char) {
         exitTyping(true);
       }
     });
+
+    // 手機轉向/改尺寸：重新計算底下原文一行可顯示幾多個字
+    window.addEventListener('resize', () => {
+      if (state.isTyping) {
+        state.contextWindowSize = 0;
+        // 延遲一陣等 viewport 穩定
+        setTimeout(computeContextWindowSize, 120);
+      }
+    }, { passive: true });
 
     function render() {
       if (state.isTyping) {
@@ -1637,7 +1647,10 @@ function getCharCodes(char) {
 
       html += `</div></div>`;
       root.innerHTML = html;
-      // 折衝方案：底下一行係「分頁顯示」，唔需要再做對中滾動
+      // 折衝方案：先計算畫面放得落幾多個字（不同手機會不同）
+      // 注意：compute 會觸發 render() 一次，用嚟套用新 window size
+      setTimeout(computeContextWindowSize, 0);
+      setTimeout(computeContextWindowSize, 80);
 
       // banner 自檢
       document.getElementById('runSelfTestBtn')?.addEventListener('click', (e)=>{
@@ -1852,8 +1865,53 @@ function getCharCodes(char) {
     // 為咗保持答案長度合理，呢度我用同之前一樣嘅邏輯，但由於重複，我簡化寫法。
     // 但為咗確保運作，我會 include 完整嘅函數。
 
-    // 折衝方案：底下一行一次顯示 N 個字；每到下一個「頁」先整行換字
-    const CONTEXT_WINDOW_SIZE = 10;
+    // 折衝方案（動態視窗）：底下一行一次顯示「畫面放得落」咁多個字；到下一頁先整行換
+    function getContextWindowSize() {
+      const v = Number(state.contextWindowSize || 0);
+      return (v && v > 0) ? v : 10;
+    }
+
+    function computeContextWindowSize() {
+      const box = document.getElementById('typingContext');
+      if (!box) return;
+
+      // 建一個隱形量度 span（同一樣字體/大小）
+      let m = document.getElementById('tctxMeasure');
+      if (!m) {
+        m = document.createElement('span');
+        m.id = 'tctxMeasure';
+        m.style.position = 'absolute';
+        m.style.visibility = 'hidden';
+        m.style.whiteSpace = 'nowrap';
+        m.style.left = '-9999px';
+        m.style.top = '-9999px';
+        // 跟 typing-context 一樣字體
+        m.style.fontSize = getComputedStyle(box).fontSize;
+        m.style.fontFamily = getComputedStyle(box).fontFamily;
+        document.body.appendChild(m);
+      } else {
+        m.style.fontSize = getComputedStyle(box).fontSize;
+        m.style.fontFamily = getComputedStyle(box).fontFamily;
+      }
+
+      // 用 10 個「最常見寬度」字做樣本量度平均寬度
+      const sampleLen = 10;
+      m.textContent = '日日日日日日日日日'.slice(0, sampleLen);
+      const sampleW = m.getBoundingClientRect().width || 0;
+      if (!sampleW) return;
+      const avg = sampleW / sampleLen;
+
+      const usable = Math.max(0, box.clientWidth - 12); // 扣少少 padding
+      let win = Math.floor(usable / avg);
+      // 合理範圍：最少 3 個，最多 24 個
+      win = Math.max(3, Math.min(24, win));
+
+      if (win !== state.contextWindowSize) {
+        state.contextWindowSize = win;
+        // 重新 render 一次，套用新視窗大小
+        render();
+      }
+    }
 
     function renderTypingContextHtml() {
       const arr = state.textArray || [];
@@ -1861,7 +1919,7 @@ function getCharCodes(char) {
       const idx = state.currentIndex || 0;
       if (!total) return '';
 
-      const win = CONTEXT_WINDOW_SIZE;
+      const win = getContextWindowSize();
       const start = Math.floor(idx / win) * win;
       const end = Math.min(total, start + win);
       const pieces = [];
