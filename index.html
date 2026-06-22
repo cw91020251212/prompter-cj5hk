@@ -977,6 +977,12 @@
         const tag = (t.tagName || '').toLowerCase();
         if (tag === 'input' || tag === 'textarea' || t.isContentEditable) {
           update();
+
+          // iPhone Safari（特別係 iPhone 13 / 較舊 iOS）有機會因為 focus 後再 scrollIntoView
+          // 導致 caret 永遠跳去尾，出現「點中間都落唔到游標」的假象。
+          // 提詞機主 textarea 本身已經喺畫面中間，唔需要自動捲動。
+          if (t.id === 'inputTextArea') return;
+
           ensureVisible(t);
         }
       }, true);
