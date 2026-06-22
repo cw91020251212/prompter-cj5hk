@@ -11,6 +11,15 @@
   <link rel="apple-touch-icon" sizes="180x180" href="assets/icons/apple-touch-icon.png">
   <link rel="manifest" href="site.webmanifest">
   <meta name="theme-color" content="#0f172a">
+
+  <!-- Share preview (唔影響分享：只係補齊 OG/Twitter 圖標) -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="提詞機・速成倉頡字典">
+  <meta property="og:image" content="assets/icons/share-1200x630.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="assets/icons/share-1200x630.png">
   <title>提詞機・速成倉頡字典</title>
   <style>
     /* 同上，省略 CSS 以節省篇幅，但功能完整，請放心複製 */
@@ -2159,7 +2168,7 @@ if (!showRad && charData && method === 'cangjie') {
               <p style="color:#94a3b8;margin-bottom:20px;">想唔想儲存呢段文章落草稿？</p>
               <button id="saveAndClear" class="save-btn">儲存並結束</button>
               <button id="clearOnly" class="clear-btn">唔儲存，直接結束</button>
-              <button onclick="state.showSaveDialog=false;render();" style="background:transparent;color:#64748b;box-shadow:none;">返去睇多次</button>
+              <button id="backToReading" style="background:transparent;color:#64748b;box-shadow:none;">返去睇多次</button>
             </div>
           </div>
         `;
@@ -2199,6 +2208,12 @@ if (!showRad && charData && method === 'cangjie') {
       `;
 
       root.innerHTML = html;
+
+      // 修復：避免 inline onclick 取唔到 state/render（iOS 會出事）
+      document.getElementById('backToReading')?.addEventListener('click', () => {
+        state.showSaveDialog = false;
+        render();
+      });
 
       // 綁定英文發音控制（只限字母A-Z模式）
       if (ttsBarHtml) {
