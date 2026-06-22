@@ -1939,13 +1939,19 @@ function getCharCodes(char) {
       // 合理範圍：最少 3 個，最多 24 個
       win = Math.max(3, Math.min(24, win));
 
-      if (win !== state.contextWindowSize) {
-        state.contextWindowSize = win;
+      // 你提到「喇叭開/關」會令可見字數跳動（例如開 7、關 6 或反過來）
+      // 這裏採用「以小為本」：一旦算到較細嘅 win，就固定用較細值，避免狀態切換時字數忽多忽少。
+      const stableWin = (state.contextWindowSize && state.contextWindowSize > 0)
+        ? Math.min(state.contextWindowSize, win)
+        : win;
+
+      if (stableWin !== state.contextWindowSize) {
+        state.contextWindowSize = stableWin;
         // 只更新底下灰色原文提示，避免每個字都觸發 full render
         const ctx = document.getElementById('typingContext');
         if (ctx) ctx.innerHTML = renderTypingContextHtml();
       }
-      return win;
+      return stableWin;
     }
 
     function renderTypingContextHtml() {
