@@ -2204,7 +2204,7 @@ if (!showRad && charData && method === 'cangjie') {
               <p style="color:#94a3b8;margin-bottom:20px;">想唔想儲存呢段文章落草稿？</p>
               <button id="saveAndClear" class="save-btn">儲存並結束</button>
               <button id="clearOnly" class="clear-btn">唔儲存，直接結束</button>
-              <button onclick="state.showSaveDialog=false;render();" style="background:transparent;color:#64748b;box-shadow:none;">返去睇多次</button>
+              <button id="dismissSaveDialog" style="background:transparent;color:#64748b;box-shadow:none;">返去睇多次</button>
             </div>
           </div>
         `;
@@ -2300,7 +2300,6 @@ if (!showRad && charData && method === 'cangjie') {
 
       // 任何位置點一下就翻頁（但尊重上面豁免）
       document.getElementById('typingOverlay')?.addEventListener('click', handleTypingOverlayTap);
-      document.getElementById('typingChar')?.addEventListener('click', handleTypingOverlayTap);
       document.getElementById('prevChar')?.addEventListener('click', goPrev);
       document.getElementById('nextChar')?.addEventListener('click', goNext);
       document.getElementById('exitTyping')?.addEventListener('click', () => {
@@ -2339,6 +2338,11 @@ if (!showRad && charData && method === 'cangjie') {
         closeAndClear();
       });
       document.getElementById('clearOnly')?.addEventListener('click', closeAndClear);
+      document.getElementById('dismissSaveDialog')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        state.showSaveDialog = false;
+        render();
+      });
 
       window.typingKeyHandler = function(e) {
         if (state.showSaveDialog) return;
@@ -2384,8 +2388,14 @@ if (!showRad && charData && method === 'cangjie') {
       render();
     }
     function goPrev() {
+      // 向後：即時回退（更順），唔做 440ms 走馬燈動畫
       if (state.currentIndex > 0) {
-        startSlide(state.currentIndex - 1);
+        state.currentIndex--;
+        state.showSaveDialog = false;
+        state.isSliding = false;
+        state.slideToIndex = null;
+        if (state.slideTimer) { clearTimeout(state.slideTimer); state.slideTimer = null; }
+        render();
       }
     }
     function exitTyping(skipHistory=false) {
