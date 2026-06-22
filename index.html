@@ -1891,9 +1891,10 @@ function getCharCodes(char) {
       if (box) {
         const fs = parseFloat(getComputedStyle(box).fontSize) || 16;
         const usable = Math.max(0, box.clientWidth - 12);
-        // 保守估算：1 字 ≈ 1em + 左右 padding(0.2em)
-        const per = fs * 1.20;
-        const safety = Math.max(10, per * 0.45);
+        // 保守估算（以少為本）：寧願少 1 個字，都唔好出現「靜止較多、運行較少」
+        // 1 字寬度估算稍為放大 + 安全邊加大，令 fallback 計出嚟偏細
+        const per = fs * 1.25;
+        const safety = Math.max(12, per * 0.75);
         let est = Math.floor((usable - safety) / per);
         est = Math.max(3, Math.min(24, est || 3));
         return est;
@@ -1938,6 +1939,17 @@ function getCharCodes(char) {
       let win = Math.floor((usable - safety) / avg);
       // 合理範圍：最少 3 個，最多 24 個
       win = Math.max(3, Math.min(24, win));
+
+      // 以「完整顯示」為準：如果最後一個字會出半個，就逐個減，直到完全放得落
+      // （避免 sub-pixel/字體渲染差異導致「半個字」）
+      const fitsN = (n) => {
+        if (n <= 0) return false;
+        m.innerHTML = Array.from({length: n}).map(() => `<span class="tctx-ch">日</span>`).join('');
+        const w = m.getBoundingClientRect().width || 0;
+        // 留 1px buffer，確保唔會貼邊被截
+        return (w > 0) && (w <= (usable - 1));
+      };
+      while (win > 3 && !fitsN(win)) win--;
 
       // 你提到「喇叭開/關」會令可見字數跳動（例如開 7、關 6 或反過來）
       // 這裏採用「以小為本」：一旦算到較細嘅 win，就固定用較細值，避免狀態切換時字數忽多忽少。
@@ -2175,6 +2187,11 @@ if (!showRad && charData && method === 'cangjie') {
       `;
 
       root.innerHTML = html;
+
+      // 入打字畫面即刻計一次「一行可完整顯示幾多字」
+      //（避免你講嘅：未開始/靜止畫面仍然用咗較長字數，之後先縮短）
+      computeContextWindowSize();
+      setTimeout(computeContextWindowSize, 120);
 
       // 綁定英文發音控制（只限字母A-Z模式）
       if (ttsBarHtml) {
