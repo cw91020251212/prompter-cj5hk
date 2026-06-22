@@ -954,9 +954,19 @@
         if (!el) return;
         setTimeout(() => {
           try {
-            el.scrollIntoView({block:'center', inline:'nearest', behavior:'smooth'});
+            // iOS（特別係較舊版本）如果每次 focus 都強制 smooth scroll，
+            // 可能會令游標/選取位置被重置，造成「已輸入但唔俾改／撳唔到中間改字」。
+            // 所以：只喺真係被鍵盤遮住或超出視野先 scroll，而且用 auto。
+            const vv = window.visualViewport;
+            const viewH = vv ? vv.height : window.innerHeight;
+            const rect = el.getBoundingClientRect();
+            const margin = 18;
+            const needScroll = (rect.bottom > (viewH - margin)) || (rect.top < margin);
+            if (needScroll) {
+              el.scrollIntoView({block:'center', inline:'nearest', behavior:'auto'});
+            }
           } catch (e) {
-            el.scrollIntoView(true);
+            try { el.scrollIntoView(true); } catch(e2) {}
           }
         }, 60);
       }
