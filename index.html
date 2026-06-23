@@ -1779,7 +1779,13 @@ function getCharCodes(char) {
       // 事件綁定（tab 可能唔存在）
       document.querySelectorAll('[data-tab]').forEach(btn => {
         btn.addEventListener('click', () => {
-          state.activeTab = btn.dataset.tab;
+          const tab = btn.dataset.tab;
+          state.activeTab = tab;
+          // 「字典」功能：預設用「倉頡 + 字根提示」
+          if (tab === 'dict') {
+            state.inputMethod = 'cangjie';
+            state.showRadical = true;
+          }
           render();
         });
       });
@@ -2340,7 +2346,11 @@ if (!showRad && charData && method === 'cangjie') {
       document.getElementById('clearOnly')?.addEventListener('click', closeAndClear);
       document.getElementById('dismissSaveDialog')?.addEventListener('click', (e) => {
         e.preventDefault();
+        // 「返去睇多次」：回到開始位置（第 1 個字），而唔係留喺最尾
         state.showSaveDialog = false;
+        state.currentIndex = 0;
+        state.isSliding = false;
+        state.slideToIndex = null;
         render();
       });
 
