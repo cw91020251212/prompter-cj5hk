@@ -412,40 +412,54 @@
     .code-block.quick-head.radical { background:#059669; border-color:#34d399; }
     /* number 已經係橙色系（.code-block.number） */
 
-    /* 倉頡排版：按碼數(1-5)單行置中；細屏幕可橫向捲動 */
+    /* 倉頡排版：永遠以「4格」做基準平均分配（唔出界）
+       做法：用 12 欄 grid，每粒碼佔 3 欄 (= 1/4 闊度)。
+       1/2/3/4/5 碼都用同一粒尺寸；不足 4 粒就置中擺位。
+    */
     .code-blocks.cj-grid{
       display: grid;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
       gap: 8px;
-      justify-content: center;
+      width: 100%;
+      justify-content: stretch;
       align-items: center;
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
+      overflow: hidden; /* 重點：唔橫向出界 */
       padding-bottom: 2px;
     }
-    .code-blocks.cj-grid.cj-len-1{ grid-template-columns: repeat(1, auto); }
-    .code-blocks.cj-grid.cj-len-2{ grid-template-columns: repeat(2, auto); }
-    .code-blocks.cj-grid.cj-len-3{ grid-template-columns: repeat(3, auto); }
-    .code-blocks.cj-grid.cj-len-4{ grid-template-columns: repeat(4, auto); }
-    /* 5碼：上2下3（上排要置中）
-       做法：用 6 欄 grid，兩粒一組佔 2 欄，
-       上排擺喺 2-3、4-5 欄；下排擺喺 1-2、3-4、5-6 欄。
-       這樣「上面兩個字」就會視覺上真正置中。
-    */
-    .code-blocks.cj-grid.cj-len-5{ grid-template-columns: repeat(6, auto); }
-    .code-blocks.cj-grid.cj-len-5 .code-block:nth-child(1){ grid-row:1; grid-column:2 / span 2; }
-    .code-blocks.cj-grid.cj-len-5 .code-block:nth-child(2){ grid-row:1; grid-column:4 / span 2; }
-    .code-blocks.cj-grid.cj-len-5 .code-block:nth-child(3){ grid-row:2; grid-column:1 / span 2; }
-    .code-blocks.cj-grid.cj-len-5 .code-block:nth-child(4){ grid-row:2; grid-column:3 / span 2; }
-    .code-blocks.cj-grid.cj-len-5 .code-block:nth-child(5){ grid-row:2; grid-column:5 / span 2; }
-
-    /* 4-5碼：縮少少避免迫爆（仍然單行） */
-    .code-blocks.cj-grid.cj-len-4 .code-block,
-    .code-blocks.cj-grid.cj-len-5 .code-block{
-      min-width: 62px;
-      min-height: 70px;
-      padding: 12px 12px;
-      font-size: calc(2.25rem * var(--ui-scale));
+    /* 令格仔可以跟住 1/4 闊度縮放（唔靠 min-width 迫爆） */
+    .code-blocks.cj-grid .code-block{
+      grid-column: span 3;
+      min-width: 0;
+      width: 100%;
+      padding: 14px 0;
+      /* 字體上限維持同之前 3 碼一樣；下限避免太細 */
+      font-size: calc(clamp(1.7rem, 8.5vw, 2.6rem) * var(--ui-scale));
     }
+
+    /* 1碼：擺中間（第 5-7 欄） */
+    .code-blocks.cj-grid.cj-len-1 .code-block:nth-child(1){ grid-column: 5 / span 3; }
+
+    /* 2碼：擺中間（第 3-5、7-9 欄） */
+    .code-blocks.cj-grid.cj-len-2 .code-block:nth-child(1){ grid-column: 3 / span 3; }
+    .code-blocks.cj-grid.cj-len-2 .code-block:nth-child(2){ grid-column: 7 / span 3; }
+
+    /* 3碼：中間一列（第 2-4、5-7、8-10 欄） */
+    .code-blocks.cj-grid.cj-len-3 .code-block:nth-child(1){ grid-column: 2 / span 3; }
+    .code-blocks.cj-grid.cj-len-3 .code-block:nth-child(2){ grid-column: 5 / span 3; }
+    .code-blocks.cj-grid.cj-len-3 .code-block:nth-child(3){ grid-column: 8 / span 3; }
+
+    /* 4碼：自然由左至右佔滿 4 格（1-3,4-6,7-9,10-12） */
+    .code-blocks.cj-grid.cj-len-4 .code-block:nth-child(1){ grid-column: 1 / span 3; }
+    .code-blocks.cj-grid.cj-len-4 .code-block:nth-child(2){ grid-column: 4 / span 3; }
+    .code-blocks.cj-grid.cj-len-4 .code-block:nth-child(3){ grid-column: 7 / span 3; }
+    .code-blocks.cj-grid.cj-len-4 .code-block:nth-child(4){ grid-column: 10 / span 3; }
+
+    /* 5碼：上2下3（仍然用同一粒 1/4 尺寸） */
+    .code-blocks.cj-grid.cj-len-5 .code-block:nth-child(1){ grid-row:1; grid-column: 3 / span 3; }
+    .code-blocks.cj-grid.cj-len-5 .code-block:nth-child(2){ grid-row:1; grid-column: 7 / span 3; }
+    .code-blocks.cj-grid.cj-len-5 .code-block:nth-child(3){ grid-row:2; grid-column: 2 / span 3; }
+    .code-blocks.cj-grid.cj-len-5 .code-block:nth-child(4){ grid-row:2; grid-column: 5 / span 3; }
+    .code-blocks.cj-grid.cj-len-5 .code-block:nth-child(5){ grid-row:2; grid-column: 8 / span 3; }
 
     .code-block.radical {
       background: #059669;
