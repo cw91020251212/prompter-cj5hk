@@ -426,10 +426,17 @@
     .code-blocks.cj-grid.cj-len-2{ grid-template-columns: repeat(2, auto); }
     .code-blocks.cj-grid.cj-len-3{ grid-template-columns: repeat(3, auto); }
     .code-blocks.cj-grid.cj-len-4{ grid-template-columns: repeat(4, auto); }
-    /* 5碼：改為上2下3（放大字、避免太細） */
-    .code-blocks.cj-grid.cj-len-5{ grid-template-columns: repeat(3, auto); }
-    .code-blocks.cj-grid.cj-len-5 .code-block:nth-child(-n+2){ grid-row: 1; }
-    .code-blocks.cj-grid.cj-len-5 .code-block:nth-child(n+3){ grid-row: 2; }
+    /* 5碼：上2下3（上排要置中）
+       做法：用 6 欄 grid，兩粒一組佔 2 欄，
+       上排擺喺 2-3、4-5 欄；下排擺喺 1-2、3-4、5-6 欄。
+       這樣「上面兩個字」就會視覺上真正置中。
+    */
+    .code-blocks.cj-grid.cj-len-5{ grid-template-columns: repeat(6, auto); }
+    .code-blocks.cj-grid.cj-len-5 .code-block:nth-child(1){ grid-row:1; grid-column:2 / span 2; }
+    .code-blocks.cj-grid.cj-len-5 .code-block:nth-child(2){ grid-row:1; grid-column:4 / span 2; }
+    .code-blocks.cj-grid.cj-len-5 .code-block:nth-child(3){ grid-row:2; grid-column:1 / span 2; }
+    .code-blocks.cj-grid.cj-len-5 .code-block:nth-child(4){ grid-row:2; grid-column:3 / span 2; }
+    .code-blocks.cj-grid.cj-len-5 .code-block:nth-child(5){ grid-row:2; grid-column:5 / span 2; }
 
     /* 4-5碼：縮少少避免迫爆（仍然單行） */
     .code-blocks.cj-grid.cj-len-4 .code-block,
