@@ -183,6 +183,23 @@
     .not-found button { margin-top: 12px; padding: 8px 20px; background: #334155; border: 1px solid #475569; border-radius: 10px; color: white; font-weight: 700; cursor: pointer; transition: 0.2s; }
     .not-found button:hover { background: #475569; }
 
+    /* ===== 查單字：自動儲存（最多 60） ===== */
+    .dict-history{ width: 100%; max-width: 420px; margin: 6px auto 0; background:#0b1220; border: 1px solid #334155; border-radius: 18px; padding: 12px; }
+    .dict-history-head{ display:flex; align-items:center; justify-content:space-between; gap: 10px; margin-bottom: 10px; }
+    .dict-history-title{ color:#94a3b8; font-weight: 900; font-size: 0.9rem; }
+    .dict-history-clear{ background: rgba(255,255,255,0.06); border: 1px solid #334155; color:#e2e8f0; padding: 6px 12px; border-radius: 999px; font-weight: 900; cursor: pointer; font-size: 0.85rem; }
+    .dict-history-clear:disabled{ opacity: 0.35; cursor:not-allowed; }
+    .dict-history-clear:hover{ border-color:#60a5fa; }
+
+    .dict-hlist{ display:flex; flex-wrap:wrap; gap: 8px; }
+    .dict-history-empty{ color:#475569; font-weight: 800; font-size: 0.9rem; padding: 6px 0; }
+
+    .dict-hitem{ display:inline-flex; align-items:stretch; border-radius: 999px; overflow:hidden; border: 1px solid #334155; background: rgba(255,255,255,0.04); }
+    .dict-hpick{ appearance:none; border:0; background: transparent; color:#f8fafc; font-weight: 950; padding: 8px 12px; cursor:pointer; min-width: 42px; }
+    .dict-hpick:hover{ background: rgba(96,165,250,0.14); }
+    .dict-hdel{ appearance:none; border:0; background: rgba(255,255,255,0.06); color:#cbd5e1; font-weight: 950; padding: 8px 10px; cursor:pointer; }
+    .dict-hdel:hover{ background: rgba(248,113,113,0.20); color:#fecaca; }
+
     /* ================== 全新打字覆蓋層：物理防重疊 Flexbox ================== */
     .typing-overlay {
       position: fixed;
@@ -769,16 +786,61 @@
       const drafts = JSON.parse(localStorage.getItem('savedDrafts')) || [];
       state.savedDrafts = drafts;
     } catch(e) {}
-// 不再保存/顯示「曾查單字」：清走舊資料，避免殘留
-    try { localStorage.removeItem('dictHistory_v1'); } catch(e) {}
-    state.dictHistory = [];
+try {
+      const hist = JSON.parse(localStorage.getItem('dictHistory_v1')) || [];
+      const arr = Array.isArray(hist) ? hist.filter(x => typeof x === 'string') : [];
+      state.dictHistory = arr.slice(0, 60);
+    } catch(e) {}
 
+    function saveDictHistory(){
+      try { localStorage.setItem('dictHistory_v1', JSON.stringify(state.dictHistory || [])); } catch(e) {}
+    }
+    function addToDictHistory(ch){
+      if (!ch || typeof ch !== 'string') return;
+      ch = Array.from(ch).join('').trim();
+      if (!ch) return;
+      ch = Array.from(ch)[0];
+      const arr = Array.isArray(state.dictHistory) ? state.dictHistory.slice() : [];
+      const next = [ch, ...arr.filter(x=>x!==ch)].slice(0, 60);
+      state.dictHistory = next;
+      saveDictHistory();
+    }
+    function removeFromDictHistory(ch){
+      if (!Array.isArray(state.dictHistory)) return;
+      state.dictHistory = state.dictHistory.filter(x=>x!==ch);
+      saveDictHistory();
+    }
+    function clearDictHistory(){
+      state.dictHistory = [];
+      saveDictHistory();
+    }
 
-    
-    function saveDictHistory(){ /* 已停用曾查單字記錄 */ }
-    function addToDictHistory(ch){ /* 已停用 */ }
-    function removeFromDictHistory(ch){ /* 已停用 */ }
-    function clearDictHistory(){ /* 已停用 */ }
+    function renderDictHistoryHtml(){
+      const items = Array.isArray(state.dictHistory) ? state.dictHistory : [];
+      const count = items.length;
+
+      const listHtml = (count > 0)
+        ? items.map(ch => {
+            const safe = escapeHtml(String(ch));
+            return `
+              <div class="dict-hitem" data-ch="${safe}">
+                <button class="dict-hpick" data-dict-pick="${safe}" title="重查：${safe}">${safe}</button>
+                <button class="dict-hdel" data-dict-del="${safe}" title="刪除">✕</button>
+              </div>
+            `;
+          }).join('')
+        : `<div class="dict-history-empty">（未有記錄）</div>`;
+
+      return `
+        <div class="dict-history" id="dictHistory">
+          <div class="dict-history-head">
+            <div class="dict-history-title">🕘 最近查過（最多 60）</div>
+            <button id="dictHistoryClear" class="dict-history-clear" ${count ? '' : 'disabled'}>清除</button>
+          </div>
+          <div class="dict-hlist">${listHtml}</div>
+        </div>
+      `;
+    }
 
     // 每次進入「查單字」都回復預設（清空輸入＋結果）
     function resetDictOnEnter(){
@@ -786,8 +848,7 @@
       state.ttsSettingsOpen = false;
       state.ttsLastSpokenKey = '';
       stopSpeaking();
-      try { localStorage.removeItem('dictHistory_v1'); } catch(e) {}
-      state.dictHistory = [];
+      // 注意：曾查記錄要保留，所以唔清 dictHistory/localStorage
     }
 
 (function initTtsMuted() {
@@ -1092,6 +1153,8 @@
               ${isReady ? (dictVal ? renderCodeBlocks(charData, dictVal.trim(), method, showRad) : `<div class="result-placeholder">手寫或輸入單字即時解碼</div>`) : `<div style="color:#94a3b8;">⏳ 碼表載入中，請稍後…</div>`}
             </div>
 
+            ${renderDictHistoryHtml()}
+
           </div>
         `;
       }
@@ -1300,6 +1363,10 @@
           let val = e.target.value;
           if (val.length > 1) val = val.slice(0,1);
           state.dictInput = val;
+          // 記錄要「一定」寫入：即使碼表未ready都照記
+          if (val) {
+            addToDictHistory(val);
+          }
           render();
         });
         dictInput.addEventListener('focus', (e) => e.target.select());
@@ -1325,7 +1392,40 @@
       document.getElementById('dictBtnQuick')?.addEventListener('click', () => toggleDictMethodAndRad('quick'));
       document.getElementById('dictBtnCangjie')?.addEventListener('click', () => toggleDictMethodAndRad('cangjie'));
 
-      // （已移除「曾查單字」功能：不再顯示/不再綁定事件）
+      // 曾查單字（自動儲存、最多 60）
+      const clearHistBtn = document.getElementById('dictHistoryClear');
+      if (clearHistBtn) {
+        clearHistBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          clearDictHistory();
+          render();
+        });
+      }
+
+      document.querySelectorAll('[data-dict-pick]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          const ch = String(btn.getAttribute('data-dict-pick') || '').trim();
+          if (!ch) return;
+          state.dictInput = Array.from(ch)[0];
+          addToDictHistory(state.dictInput);
+          render();
+          setTimeout(() => {
+            const el = document.getElementById('dictInput');
+            if (el) { el.focus(); el.select?.(); }
+          }, 0);
+        });
+      });
+
+      document.querySelectorAll('[data-dict-del]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          const ch = String(btn.getAttribute('data-dict-del') || '').trim();
+          if (!ch) return;
+          removeFromDictHistory(Array.from(ch)[0]);
+          render();
+        });
+      });
 
     }
 
