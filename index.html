@@ -238,10 +238,13 @@
     }
 
     .typing-context{
-      position: absolute; left: 50%; top: 50%; transform: translate(-50%, 0); margin-top: 1.05em; width: 100%; max-width: 92vw; padding: 6px 6px;
-      color: #94a3b8; font-size: calc(clamp(2.0rem, 5.2vw, 3.2rem) * var(--ui-scale)); line-height: 1.15; white-space: nowrap; overflow: hidden; text-align: center; user-select: none; transition: font-size 180ms ease, margin-top 180ms ease;
+      position: absolute; left: 50%; top: 50%; transform: translate(-50%, 0); margin-top: 1.05em; width: 100%; max-width: 92vw; padding: 6px 10px;
+      color: #94a3b8; font-size: calc(clamp(2.0rem, 5.2vw, 3.2rem) * var(--ui-scale)); line-height: 1.15;
+      white-space: nowrap; overflow: hidden;
+      display: flex; align-items: baseline; justify-content: center; gap: 0px;
+      user-select: none; transition: font-size 180ms ease, margin-top 180ms ease;
     }
-    .typing-context .tctx-ch{ display:inline-block; opacity: 0.55; padding: 0 0.10em; }
+    .typing-context .tctx-ch{ display:inline-block; flex: 0 0 auto; opacity: 0.55; padding: 0; }
     .typing-context .tctx-ch.active{ opacity: 0.98; color:#cbd5e1; text-decoration: underline; text-decoration-color: #3b82f6; text-decoration-thickness: 3px; text-underline-offset: 6px; }
 
     .typing-footer {
@@ -828,7 +831,7 @@ try {
     window.addEventListener('resize', () => {
       if (state.isTyping) {
         state.contextWindowSize = 0;
-        setTimeout(computeContextWindowSize, 120);
+        setTimeout(() => { computeContextWindowSize(); layoutTypingContext(); }, 120);
         updateHintKbdCompact();
       }
     }, { passive: true });
@@ -1122,6 +1125,11 @@ try {
       html += `</div></div>`;
       root.innerHTML = html;
 
+      // 初次進入提詞機：先計算可顯示字數，再做「只顯示完整字」+ 平均分佈
+      state.contextWindowSize = 0;
+      setTimeout(() => { computeContextWindowSize(); layoutTypingContext(); }, 0);
+      setTimeout(() => { computeContextWindowSize(); layoutTypingContext(); }, 140);
+
       setTimeout(() => computeContextWindowSize(), 0);
       setTimeout(() => computeContextWindowSize(), 120);
 
@@ -1410,7 +1418,57 @@ try {
         const ctx = document.getElementById('typingContext');
         if (ctx) ctx.innerHTML = renderTypingContextHtml();
       }
+      setTimeout(() => layoutTypingContext(), 0);
+      setTimeout(() => layoutTypingContext(), 120);
       return stableWin;
+    }
+
+    // 避免「半個字」被裁切：只顯示完整可容納字數，並平均分佈字距
+    function layoutTypingContext() {
+      const ctx = document.getElementById('typingContext');
+      if (!ctx) return;
+      const items = Array.from(ctx.querySelectorAll('.tctx-ch'));
+      if (!items.length) return;
+
+      // reset
+      ctx.style.gap = '0px';
+      ctx.style.justifyContent = 'center';
+      items.forEach(el => { el.style.display = 'inline-block'; });
+
+      const maxW = ctx.clientWidth;
+      if (!maxW) return;
+
+      // decide how many full chars fit
+      let used = 0;
+      let keep = 0;
+      for (let i = 0; i < items.length; i++) {
+        const w = items[i].getBoundingClientRect().width;
+        if (!w) { keep = i + 1; continue; }
+        if (used + w <= maxW) {
+          used += w;
+          keep = i + 1;
+        } else {
+          break;
+        }
+      }
+      if (keep < items.length) {
+        for (let i = keep; i < items.length; i++) items[i].style.display = 'none';
+      }
+
+      // distribute spacing evenly across the available width
+      const visible = items.slice(0, keep).filter(el => el.style.display !== 'none');
+      if (visible.length <= 1) {
+        ctx.style.justifyContent = 'center';
+        ctx.style.gap = '0px';
+        return;
+      }
+      // re-measure after hiding
+      let sum = 0;
+      visible.forEach(el => { sum += el.getBoundingClientRect().width; });
+      const remain = Math.max(0, maxW - sum);
+      const gap = remain / (visible.length - 1);
+      ctx.style.justifyContent = 'flex-start';
+      ctx.style.gap = `${gap}px`;
     }
 
     function renderHintKeyboardHtml(letters, isQuick, showRad){
