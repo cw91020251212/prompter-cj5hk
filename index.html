@@ -728,10 +728,12 @@
 
       const isPunct = (letters.length >= 4 && letters[0] === 'Z' && letters[1] === 'X');
 
+      // 速成一般用「頭碼 + 尾碼」。
+      // 但若倉頡本身只有 1 碼（例如：水 = E），就只有「頭碼」，唔應該夾硬複製做兩個「水水」。
       const quick = (letters.length === 1)
-        ? [letters[0], letters[0]]
+        ? [letters[0]]
         : [letters[0], letters[letters.length-1]];
-      const quickCode = (quick[0] + quick[1]).toLowerCase();
+      const quickCode = quick.join('').toLowerCase();
       const qIndex = (QUICK_NUM_MAP && QUICK_NUM_MAP[char]) ? QUICK_NUM_MAP[char] : 1;
       const qPage = Math.floor((qIndex - 1) / 9) + 1;
       const qKey  = ((qIndex - 1) % 9) + 1;
