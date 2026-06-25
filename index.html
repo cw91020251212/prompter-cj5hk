@@ -596,10 +596,8 @@
         const letters = code.split('');
         if (letters.length === 0) continue;
         const first = letters[0];
-        const last = letters[letters.length - 1];
-        const quick = (letters.length === 1)
-          ? String(first).toLowerCase()
-          : String(first + last).toLowerCase();
+        const last = letters.length === 1 ? letters[0] : letters[letters.length - 1];
+        const quick = (first + last).toLowerCase();
         (buckets[quick] ||= []).push(ch);
       }
       const map = {};
@@ -714,11 +712,9 @@
       const isPunct = (letters.length >= 4 && letters[0] === 'Z' && letters[1] === 'X');
 
       const quick = (letters.length === 1)
-        ? [letters[0]]
+        ? [letters[0], letters[0]]
         : [letters[0], letters[letters.length-1]];
-      const quickCode = (quick.length === 1)
-        ? String(quick[0]).toLowerCase()
-        : String(quick[0] + quick[1]).toLowerCase();
+      const quickCode = (quick[0] + quick[1]).toLowerCase();
       const qIndex = (QUICK_NUM_MAP && QUICK_NUM_MAP[char]) ? QUICK_NUM_MAP[char] : 1;
       const qPage = Math.floor((qIndex - 1) / 9) + 1;
       const qKey  = ((qIndex - 1) % 9) + 1;
@@ -799,6 +795,16 @@ try {
       saveDictHistory();
     }
     function clearDictHistory(){
+      state.dictHistory = [];
+      saveDictHistory();
+    }
+
+    // 每次進入「查單字」都回復預設（清空輸入＋結果＋曾查記錄）
+    function resetDictOnEnter(){
+      state.dictInput = '';
+      state.ttsSettingsOpen = false;
+      state.ttsLastSpokenKey = '';
+      stopSpeaking();
       state.dictHistory = [];
       saveDictHistory();
     }
@@ -1186,13 +1192,22 @@ try {
         btn.addEventListener('click', () => {
           const tab = btn.dataset.tab;
           state.activeTab = tab;
-          if (tab === 'dict') { state.inputMethod = 'cangjie'; state.showRadical = true; }
+          if (tab === 'dict') {
+            resetDictOnEnter();
+            state.inputMethod = 'cangjie';
+            state.showRadical = true;
+          }
           render();
         });
       });
 
       const backBtn = document.getElementById('backToPrompter');
-      if (backBtn) backBtn.addEventListener('click', () => { state.activeTab = 'prompter'; render(); });
+      if (backBtn) backBtn.addEventListener('click', () => {
+        state.activeTab = 'prompter';
+        state.ttsSettingsOpen = false;
+        stopSpeaking();
+        render();
+      });
       
       const fsBtn = document.getElementById('fullscreenBtn');
       if (fsBtn) {
