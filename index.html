@@ -596,8 +596,10 @@
         const letters = code.split('');
         if (letters.length === 0) continue;
         const first = letters[0];
-        const last = letters.length === 1 ? letters[0] : letters[letters.length - 1];
-        const quick = (first + last).toLowerCase();
+        const last = letters[letters.length - 1];
+        const quick = (letters.length === 1)
+          ? String(first).toLowerCase()
+          : String(first + last).toLowerCase();
         (buckets[quick] ||= []).push(ch);
       }
       const map = {};
@@ -712,9 +714,11 @@
       const isPunct = (letters.length >= 4 && letters[0] === 'Z' && letters[1] === 'X');
 
       const quick = (letters.length === 1)
-        ? [letters[0], letters[0]]
+        ? [letters[0]]
         : [letters[0], letters[letters.length-1]];
-      const quickCode = (quick[0] + quick[1]).toLowerCase();
+      const quickCode = (quick.length === 1)
+        ? String(quick[0]).toLowerCase()
+        : String(quick[0] + quick[1]).toLowerCase();
       const qIndex = (QUICK_NUM_MAP && QUICK_NUM_MAP[char]) ? QUICK_NUM_MAP[char] : 1;
       const qPage = Math.floor((qIndex - 1) / 9) + 1;
       const qKey  = ((qIndex - 1) % 9) + 1;
