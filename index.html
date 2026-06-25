@@ -769,44 +769,25 @@
       const drafts = JSON.parse(localStorage.getItem('savedDrafts')) || [];
       state.savedDrafts = drafts;
     } catch(e) {}
-try {
-      const hist = JSON.parse(localStorage.getItem('dictHistory_v1')) || [];
-      state.dictHistory = Array.isArray(hist) ? hist.filter(x=>typeof x==='string') : [];
-    } catch(e) {}
+// 不再保存/顯示「曾查單字」：清走舊資料，避免殘留
+    try { localStorage.removeItem('dictHistory_v1'); } catch(e) {}
+    state.dictHistory = [];
 
 
     
-    function saveDictHistory(){
-      try { localStorage.setItem('dictHistory_v1', JSON.stringify(state.dictHistory || [])); } catch(e) {}
-    }
-    function addToDictHistory(ch){
-      if (!ch || typeof ch !== 'string') return;
-      ch = Array.from(ch).join('').trim();
-      if (!ch) return;
-      ch = Array.from(ch)[0];
-      const arr = Array.isArray(state.dictHistory) ? state.dictHistory.slice() : [];
-      const next = [ch, ...arr.filter(x=>x!==ch)].slice(0, 60);
-      state.dictHistory = next;
-      saveDictHistory();
-    }
-    function removeFromDictHistory(ch){
-      if (!Array.isArray(state.dictHistory)) return;
-      state.dictHistory = state.dictHistory.filter(x=>x!==ch);
-      saveDictHistory();
-    }
-    function clearDictHistory(){
-      state.dictHistory = [];
-      saveDictHistory();
-    }
+    function saveDictHistory(){ /* 已停用曾查單字記錄 */ }
+    function addToDictHistory(ch){ /* 已停用 */ }
+    function removeFromDictHistory(ch){ /* 已停用 */ }
+    function clearDictHistory(){ /* 已停用 */ }
 
-    // 每次進入「查單字」都回復預設（清空輸入＋結果＋曾查記錄）
+    // 每次進入「查單字」都回復預設（清空輸入＋結果）
     function resetDictOnEnter(){
       state.dictInput = '';
       state.ttsSettingsOpen = false;
       state.ttsLastSpokenKey = '';
       stopSpeaking();
+      try { localStorage.removeItem('dictHistory_v1'); } catch(e) {}
       state.dictHistory = [];
-      saveDictHistory();
     }
 
 (function initTtsMuted() {
@@ -1110,24 +1091,6 @@ try {
             <div class="result-box" id="dictResult">
               ${isReady ? (dictVal ? renderCodeBlocks(charData, dictVal.trim(), method, showRad) : `<div class="result-placeholder">手寫或輸入單字即時解碼</div>`) : `<div style="color:#94a3b8;">⏳ 碼表載入中，請稍後…</div>`}
             </div>
-              ${(() => {
-                const hist = state.dictHistory || [];
-                if (!hist.length) return '';
-                return `
-                  <div class="drafts" style="width:100%;max-width:520px;margin-top:14px;">
-                    <h3><span>🕘 曾查單字</span><button id="clearDictHistoryBtn" class="draft-clear-btn" title="一鍵清除曾查單字">🧹 清除</button></h3>
-                    ${hist.map(ch => `
-                      <div class="draft-item hist-item" data-hist-char="${escapeHtml(ch)}" style="font-size:1.05rem;">
-                        <div class="draft-text" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-                          <span style="font-size:1.4rem;font-weight:900;margin-right:10px;">${escapeHtml(ch)}</span>
-                          <span style="color:#94a3b8;font-weight:800;">點擊重新查</span>
-                        </div>
-                        <button class="draft-del-btn hist-del-btn" data-hist-del-char="${escapeHtml(ch)}" title="刪除此記錄">🗑</button>
-                      </div>
-                    `).join('')}
-                  </div>
-                `;
-              })()}
 
           </div>
         `;
@@ -1337,9 +1300,6 @@ try {
           let val = e.target.value;
           if (val.length > 1) val = val.slice(0,1);
           state.dictInput = val;
-          if (val && (dictStatus === 'ready' || dictStatus === 'embedded')) {
-            addToDictHistory(val);
-          }
           render();
         });
         dictInput.addEventListener('focus', (e) => e.target.select());
@@ -1365,35 +1325,7 @@ try {
       document.getElementById('dictBtnQuick')?.addEventListener('click', () => toggleDictMethodAndRad('quick'));
       document.getElementById('dictBtnCangjie')?.addEventListener('click', () => toggleDictMethodAndRad('cangjie'));
 
-      document.querySelectorAll('.hist-item').forEach(el => {
-        el.addEventListener('click', (e) => {
-          const t = e.target;
-          if (t && t.closest && t.closest('.hist-del-btn')) return;
-          const ch = el.dataset.histChar || '';
-          if (!ch) return;
-          state.dictInput = ch;
-          render();
-          setTimeout(() => {
-            const di = document.getElementById('dictInput');
-            if (di) { di.focus(); di.value = ch; di.select(); }
-          }, 0);
-        });
-      });
-
-      document.querySelectorAll('.hist-del-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          e.preventDefault(); e.stopPropagation();
-          const ch = btn.dataset.histDelChar || '';
-          if (!ch) return;
-          removeFromDictHistory(ch);
-          render();
-        });
-      });
-
-      document.getElementById('clearDictHistoryBtn')?.addEventListener('click', () => {
-        clearDictHistory();
-        render();
-      });
+      // （已移除「曾查單字」功能：不再顯示/不再綁定事件）
 
     }
 
