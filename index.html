@@ -233,7 +233,7 @@
     .jyutping-actions button.primary:active{ transform: translateY(3px); box-shadow: 0 1px 0 #1e3a8a; }
     .jyutping-actions button:active{ transform: translateY(1px); }
     .jyutping-charhead{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom: 8px; }
-    .jyutping-source{ font-size: 2.4rem; font-weight: 950; color:#f8fafc; letter-spacing: 0.02em; }
+    .jyutping-source{ font-size: 2.4rem; font-weight: 800; color:#f8fafc; letter-spacing: 0.02em; }
     .jyutping-pys{ display:flex; flex-wrap:wrap; gap:6px; justify-content:flex-end; }
     .jyutping-py-pill{ font-size: 1.05rem; font-weight: 900; color:#93c5fd; border:1px solid rgba(59,130,246,0.55); background: rgba(30,58,138,0.25); padding: 6px 10px; border-radius: 999px; }
     .jyutping-subnote{ color:#94a3b8; font-size:1.05rem; font-weight:850; margin: 8px 0 6px; }
@@ -246,8 +246,10 @@
     .jyutping-char-btn {
       width: 100%;
       background: rgba(255,255,255,0.06); border: 1px solid #334155; color: white;
-      padding: 12px 10px; border-radius: 12px; font-size: 1.9rem; font-weight: 900; cursor: pointer;
+      padding: 12px 10px; border-radius: 12px; font-size: 1.9rem; font-weight: 650; cursor: pointer;
       line-height: 1.1;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
     }
     .jyutping-char-btn:hover { border-color: #60a5fa; background: rgba(96,165,250,0.1); }
     
@@ -272,18 +274,18 @@
     .storage-drawer.expanded { height: 300px; flex-direction: column; justify-content: flex-start; padding: 16px; }
     .drawer-handle { width: 40px; height: 4px; background: #334155; border-radius: 2px; margin-bottom: 8px; }
     .dict-history-head{ display:flex; align-items:center; justify-content:space-between; gap: 10px; margin-bottom: 10px; }
-    .dict-history-title{ color:#94a3b8; font-weight: 900; font-size: 0.9rem; }
-    .dict-history-clear{ background: rgba(255,255,255,0.06); border: 1px solid #334155; color:#e2e8f0; padding: 6px 12px; border-radius: 999px; font-weight: 900; cursor: pointer; font-size: 0.85rem; }
+    .dict-history-title{ color:#94a3b8; font-weight: 900; font-size: 1.15rem; }
+    .dict-history-clear{ background: rgba(255,255,255,0.06); border: 1px solid #334155; color:#e2e8f0; padding: 10px 14px; border-radius: 999px; font-weight: 850; cursor: pointer; font-size: 1.05rem; }
     .dict-history-clear:disabled{ opacity: 0.35; cursor:not-allowed; }
     .dict-history-clear:hover{ border-color:#60a5fa; }
 
-    .dict-hlist{ display:flex; flex-wrap:wrap; gap: 8px; }
-    .dict-history-empty{ color:#475569; font-weight: 800; font-size: 0.9rem; padding: 6px 0; }
+    .dict-hlist{ display:flex; flex-wrap:wrap; gap: 10px; }
+    .dict-history-empty{ color:#94a3b8; font-weight: 800; font-size: 1.05rem; padding: 10px 0; }
 
     .dict-hitem{ display:inline-flex; align-items:stretch; border-radius: 999px; overflow:hidden; border: 1px solid #334155; background: rgba(255,255,255,0.04); }
-    .dict-hpick{ appearance:none; border:0; background: transparent; color:#f8fafc; font-weight: 950; padding: 8px 12px; cursor:pointer; min-width: 42px; }
+    .dict-hpick{ appearance:none; border:0; background: transparent; color:#f8fafc; font-weight: 650; padding: 12px 16px; cursor:pointer; min-width: 56px; font-size: 1.6rem; line-height: 1.1; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
     .dict-hpick:hover{ background: rgba(96,165,250,0.14); }
-    .dict-hdel{ appearance:none; border:0; background: rgba(255,255,255,0.06); color:#cbd5e1; font-weight: 950; padding: 8px 10px; cursor:pointer; }
+    .dict-hdel{ appearance:none; border:0; background: rgba(255,255,255,0.06); color:#cbd5e1; font-weight: 800; padding: 12px 12px; cursor:pointer; font-size: 1.1rem; }
     .dict-hdel:hover{ background: rgba(248,113,113,0.20); color:#fecaca; }
 
     /* ================== 全新打字覆蓋層：物理防重疊 Flexbox ================== */
@@ -578,10 +580,10 @@
 	  .tour-mask-right{ left:auto; }
 	  .tour-spot{ position:fixed; border-radius: 18px; box-shadow: 0 0 0 3px rgba(96,165,250,0.95), 0 0 0 10px rgba(59,130,246,0.28); pointer-events:none; transition: all 120ms ease; }
 	  .tour-card{ position:fixed; width:min(380px, calc(100vw - 24px)); background:#0b1220; border:1px solid #334155; border-radius:20px; padding:16px 16px 14px; box-shadow: 0 18px 60px rgba(0,0,0,0.55); color:#e2e8f0; }
-	  .tour-title{ font-weight:950; font-size:1.2rem; color:#60a5fa; margin-bottom:6px; }
+	  .tour-title{ font-weight:850; font-size:1.2rem; color:#60a5fa; margin-bottom:6px; }
 	  .tour-body{ font-weight:750; font-size:1.05rem; line-height:1.35; color:#cbd5e1; }
 	  .tour-actions{ display:flex; gap:10px; margin-top:12px; }
-	  .tour-actions button{ flex:1; padding:12px 14px; border-radius:14px; border:1px solid #334155; background: rgba(255,255,255,0.06); color:#e2e8f0; font-weight:950; cursor:pointer; }
+	  .tour-actions button{ flex:1; padding:12px 14px; border-radius:14px; border:1px solid #334155; background: rgba(255,255,255,0.06); color:#e2e8f0; font-weight:850; cursor:pointer; }
 	  .tour-actions button.primary{ background:#2563eb; border-color:#3b82f6; box-shadow: 0 5px 0 #1e3a8a; }
 	  .tour-actions button.primary:active{ transform: translateY(4px); box-shadow: 0 1px 0 #1e3a8a; }
 	  .tour-actions button:active{ transform: translateY(1px); }
@@ -1047,7 +1049,8 @@ try {
 
     // ---------- 首次使用教學指引（Onboarding Tour） ----------
     // 如要強制重新顯示教學，只要提升版本號即可
-    const TOUR_KEYS = { prompter: 'tour_prompter_v2', dict: 'tour_dict_v2' };
+    // 如要強制重新顯示教學，只要提升版本號即可（每次更新 app 就 bump 一次）
+    const TOUR_KEYS = { prompter: 'tour_prompter_v3', dict: 'tour_dict_v3' };
     const tour = { open:false, name:'', step:0, steps:[], el:null, spot:null, card:null, title:null, body:null, next:null, skip:null, finger:null, masks:{}, cleanups:[] };
 
     const lsGet = (k)=>{ try { return localStorage.getItem(k); } catch(e){ return null; } };
@@ -1325,7 +1328,8 @@ try {
       startTour('dict', [
         { title:'查單字教學 🔍', body:'輸入一個字，就會即時顯示速成／倉頡碼。', nextLabel:'開始' },
         { title:'第一步：輸入單字', body:'撳呢個大格，輸入／手寫一個字。', target:'#dictInput', advanceOn:{ event:'focus' } },
-        { title:'第二步：睇結果／切換', body:'結果會喺呢度顯示；上面可以切換「速成／倉頡」。', target:'#dictResult', nextLabel:'完成', advanceOn:{ event:'click' }, onAdvanceDone:()=> markTourDone('dict') }
+        { title:'第二步：睇結果／切換', body:'結果會喺呢度顯示；上面可以切換「速成／倉頡」。', target:'#dictResult' },
+        { title:'新功能：搵同音字 🔍', body:'右下角呢粒 🔍 可以用「中文搵中文」：輸入一個同音字 → 揀返你想要嗰個字。', target:'#jyutpingFab', nextLabel:'完成', advanceOn:{ event:'click' }, onAdvanceDone:()=> markTourDone('dict') }
       ]);
     }
 
