@@ -1820,9 +1820,14 @@ try {
 
       if (jyFab) {
         jyFab.style.display = (state.activeTab === 'dict' && !state.isTyping) ? 'flex' : 'none';
-        jyFab.addEventListener('click', () => {
+        jyFab.addEventListener('click', async () => {
           jyPanel.classList.add('open');
           jyInput.focus();
+          if (!jyutpingLoaded) {
+            jyResults.innerHTML = '<div style="color:#475569;text-align:center;padding-top:20px;font-weight:800;">正在載入字典...</div>';
+            await loadJyutpingDict();
+            performSearch();
+          }
         });
       }
 
@@ -2451,7 +2456,8 @@ try {
     }
 
     function isChinese(str) {
-        const cjkRegex = /[\u4E00-\u9FFF\u3400-\u4DBF\uF900-\uFAFF]/;
+        // 擴展正則表達式以包含更多 CJK 字符範圍，特別是粵語常用字（如 𠵱、𠻺 等）
+        const cjkRegex = /[\u4E00-\u9FFF\u3400-\u4DBF\uF900-\uFAFF\u20000-\u2FA1F\u30000-\u3134F]/;
         return cjkRegex.test(str);
     }
 

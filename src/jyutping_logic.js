@@ -19,7 +19,8 @@ async function loadJyutpingDict() {
 
 function isChinese(str) {
     // 更準確的中文字檢測（包括 CJK 統一表意文字）
-    const cjkRegex = /[\u4E00-\u9FFF\u3400-\u4DBF\uF900-\uFAFF]/;
+    // 擴展以包含更多 CJK 字符範圍，特別是粵語常用字（如 𠵱、𠻺 等）
+    const cjkRegex = /[\u4E00-\u9FFF\u3400-\u4DBF\uF900-\uFAFF\u20000-\u2FA1F\u30000-\u3134F]/;
     return cjkRegex.test(str);
 }
 
