@@ -592,6 +592,15 @@
 	  .tour-finger svg{ width:100%; height:100%; display:block; fill:#f8fafc; transform: rotate(var(--finger-rot)); transform-origin: 50% 50%; }
 	  @keyframes tourFinger{ 0%,100%{ transform: translateY(0) scale(1);} 50%{ transform: translateY(-10px) scale(1.02);} }
 
+    /* ===== 老花友善：全面禁用粗體（按用戶要求） =====
+       目標：任何文字都唔用粗體，避免筆劃痴埋一舊。
+       註：用 !important 係為咗覆蓋之前所有 font-weight 設定。
+    */
+    :root{ --no-bold-weight: 450; }
+    *{ font-weight: var(--no-bold-weight) !important; }
+    /* 另外提高少少易讀度（唔係加粗）： */
+    body{ text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }
+
   </style>
 </head>
 <body>
