@@ -12,7 +12,6 @@
   <link rel="manifest" href="site.webmanifest">
   <meta name="theme-color" content="#0f172a">
   <title>提詞機・速成倉頡字典</title>
-  <script src="src/jyutping_logic.js"></script>
   <style>
     /* 基本重置 */
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -2431,6 +2430,67 @@ try {
     function escapeHtml(str) {
       if (!str) return '';
       return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    // ---------- 粵拼查詢邏輯（嵌入）----------
+    let jyutpingData = null;
+    let jyutpingLoaded = false;
+
+    async function loadJyutpingDict() {
+        if (jyutpingLoaded) return jyutpingData;
+        try {
+            const response = await fetch('src/jyutping_dict.json');
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            jyutpingData = await response.json();
+            jyutpingLoaded = true;
+            return jyutpingData;
+        } catch (e) {
+            console.error('[Jyutping] 無法載入粥拼字典:', e);
+            return null;
+        }
+    }
+
+    function isChinese(str) {
+        const cjkRegex = /[\u4E00-\u9FFF\u3400-\u4DBF\uF900-\uFAFF]/;
+        return cjkRegex.test(str);
+    }
+
+    function searchJyutping(input) {
+        if (!jyutpingData || !input) return [];
+        const query = input.trim();
+        
+        if (isChinese(query)) {
+            const char = Array.from(query)[0];
+            const pinyins = jyutpingData.char_to_pinyin[char];
+            if (!pinyins) return [];
+            
+            const results = [];
+            for (const py of pinyins) {
+                results.push({
+                    pinyin: py,
+                    chars: jyutpingData.pinyin_to_chars[py] || [],
+                    sourceChar: char
+                });
+            }
+            return results;
+        } else {
+            const pyQuery = query.toLowerCase();
+            const results = [];
+            for (const key in jyutpingData.pinyin_to_chars) {
+                if (key.startsWith(pyQuery)) {
+                    results.push({
+                        pinyin: key,
+                        chars: jyutpingData.pinyin_to_chars[key]
+                    });
+                }
+            }
+            results.sort((a, b) => {
+                if (a.pinyin === pyQuery) return -1;
+                if (b.pinyin === pyQuery) return 1;
+                return a.pinyin.length - b.pinyin.length;
+            });
+            return results.slice(0, 20);
+        }
     }
 
     // ---------- 註冊 PWA ----------
