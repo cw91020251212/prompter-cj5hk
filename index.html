@@ -1834,8 +1834,13 @@ try {
       }
 
       if (jyInput) {
-        jyInput.addEventListener('input', (e) => {
-          const val = e.target.value.trim();
+        // 處理中文輸入法的組字事件
+        let isComposing = false;
+        jyInput.addEventListener('compositionstart', () => { isComposing = true; });
+        jyInput.addEventListener('compositionend', () => { isComposing = false; });
+        
+        const performSearch = () => {
+          const val = jyInput.value.trim();
           if (!val) {
             jyResults.innerHTML = '<div style="color:#475569;text-align:center;padding-top:20px;font-weight:800;">輸入粵拼或中文字開始查詢</div>';
             return;
@@ -1864,7 +1869,19 @@ try {
               });
             });
           }
+        };
+        
+        jyInput.addEventListener('input', (e) => {
+          // 中文輸入法組字中，不正式該查詢
+          if (isComposing) return;
+          performSearch();
         });
+        
+        // 組字完成時也正式查詢
+        jyInput.addEventListener('compositionend', (e) => {
+          performSearch();
+        });
+
       }
 
       // 曾查單字（自動儲存、最多 60）
