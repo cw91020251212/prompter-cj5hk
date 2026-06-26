@@ -1945,13 +1945,24 @@ try {
           const pyLike = /^[a-z]+[1-6]?$/i.test(val);
 
           if (!hasHan && !pyLike) {
-            return renderNoInput('輸入中文（例：我／我哋）或粵拼（例：ngo）');
+            return renderNoInput('只接受中文輸入（例：我／我哋）');
           }
 
           if (!jyutpingLoaded) {
             jyResults.innerHTML = '<div class="jyutping-empty">正在載入同音字資料…</div>';
             await loadJyutpingDict();
           }
+
+          // 防止：字庫未成功載入時誤報「冇呢個字」
+          try {
+            const dbg = window.HKHomophones?._debug?.();
+            const loaded = !!dbg?.dictLoaded;
+            const cCount = loaded ? Object.keys(dbg.dict?.char_to_pinyin||{}).length : 0;
+            const pCount = loaded ? Object.keys(dbg.dict?.pinyin_to_chars||{}).length : 0;
+            if (!loaded || cCount === 0 || pCount === 0) {
+              return renderNoInput('同音字資料未成功載入（PWA 可能食緊舊快取）');
+            }
+          } catch(e) {}
 
           let groups = [];
           if (hasHan) {
@@ -1963,7 +1974,9 @@ try {
               : [];
           }
 
-          if (!groups.length) return renderNoInput(hasHan ? '未找到（可能字庫冇呢個字）' : '未找到（可能冇呢個讀音）');
+          if (!groups.length) {
+            return renderNoInput(hasHan ? '未找到（呢個字可能未收錄）' : '未找到（可能冇呢個讀音）');
+          }
           renderGroups(groups);
 
           // debug
