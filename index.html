@@ -12,6 +12,7 @@
   <link rel="manifest" href="site.webmanifest">
   <meta name="theme-color" content="#0f172a">
   <title>提詞機・速成倉頡字典</title>
+  <script src="src/jyutping_logic.js"></script>
   <style>
     /* 基本重置 */
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -204,6 +205,56 @@
 
     /* ===== 查單字：自動儲存（最多 60） ===== */
     .dict-history{ width: 100%; max-width: 420px; margin: 6px auto 0; background:#0b1220; border: 1px solid #334155; border-radius: 18px; padding: 12px; }
+    
+    /* 粵拼查詢介面 */
+    .jyutping-panel {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: #1e293b; border-top: 2px solid #3b82f6;
+      transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      z-index: 2000; padding: 16px; border-radius: 24px 24px 0 0;
+      box-shadow: 0 -10px 25px rgba(0,0,0,0.5);
+      max-height: 85vh; display: flex; flex-direction: column;
+    }
+    .jyutping-panel.open { transform: translateY(0); }
+    .jyutping-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .jyutping-title { font-weight: 900; color: #60a5fa; font-size: 1.2rem; }
+    .jyutping-close { background: none; border: none; color: #94a3b8; font-size: 1.5rem; cursor: pointer; }
+    .jyutping-input-wrap { position: relative; margin-bottom: 12px; }
+    .jyutping-input {
+      width: 100%; background: #0f172a; border: 2px solid #334155; border-radius: 12px;
+      padding: 12px 16px; color: white; font-size: 1.1rem; outline: none;
+    }
+    .jyutping-input:focus { border-color: #3b82f6; }
+    .jyutping-results { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding-bottom: 20px; }
+    .jyutping-item { background: #0b1220; padding: 12px; border-radius: 12px; border: 1px solid #334155; }
+    .jyutping-label { color: #94a3b8; font-size: 0.85rem; margin-bottom: 6px; font-weight: 700; }
+    .jyutping-chars { display: flex; flex-wrap: wrap; gap: 8px; }
+    .jyutping-char-btn {
+      background: rgba(255,255,255,0.06); border: 1px solid #334155; color: white;
+      padding: 6px 12px; border-radius: 8px; font-size: 1.2rem; font-weight: 800; cursor: pointer;
+    }
+    .jyutping-char-btn:hover { border-color: #60a5fa; background: rgba(96,165,250,0.1); }
+    
+    /* 懸浮按鈕 */
+    .jyutping-fab {
+      position: fixed; right: 20px; bottom: 80px;
+      width: 56px; height: 56px; background: #2563eb; color: white;
+      border-radius: 50%; display: flex; items-center: center; justify-content: center;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4); cursor: pointer; z-index: 1500;
+      font-size: 1.5rem; border: none; font-weight: 900;
+    }
+    .jyutping-fab:active { transform: scale(0.9); }
+    
+    /* 儲存抽屜 */
+    .storage-drawer {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: #0f172a; border-top: 1px solid #334155;
+      height: 48px; display: flex; align-items: center; justify-content: center;
+      z-index: 1000; cursor: pointer; color: #94a3b8; font-weight: 800;
+      transition: height 0.3s;
+    }
+    .storage-drawer.expanded { height: 300px; flex-direction: column; justify-content: flex-start; padding: 16px; }
+    .drawer-handle { width: 40px; height: 4px; background: #334155; border-radius: 2px; margin-bottom: 8px; }
     .dict-history-head{ display:flex; align-items:center; justify-content:space-between; gap: 10px; margin-bottom: 10px; }
     .dict-history-title{ color:#94a3b8; font-weight: 900; font-size: 0.9rem; }
     .dict-history-clear{ background: rgba(255,255,255,0.06); border: 1px solid #334155; color:#e2e8f0; padding: 6px 12px; border-radius: 999px; font-weight: 900; cursor: pointer; font-size: 0.85rem; }
@@ -526,7 +577,24 @@
   </style>
 </head>
 <body>
-<div id="root"></div>
+	<div id="root"></div>
+	
+	<!-- 粵拼同音字查詢面板 -->
+	<div id="jyutpingPanel" class="jyutping-panel">
+	  <div class="jyutping-header">
+	    <div class="jyutping-title">同音字 / 粵拼查詢</div>
+	    <button id="closeJyutping" class="jyutping-close">✕</button>
+	  </div>
+	  <div class="jyutping-input-wrap">
+	    <input type="text" id="jyutpingInput" class="jyutping-input" placeholder="輸入粵拼 (例如: ping, ngo)..." autocomplete="off">
+	  </div>
+	  <div id="jyutpingResults" class="jyutping-results">
+	    <div style="color:#475569;text-align:center;padding-top:20px;font-weight:800;">輸入英文字母開始查詢</div>
+	  </div>
+	</div>
+	
+	<!-- 粵拼懸浮按鈕 -->
+	<button id="jyutpingFab" class="jyutping-fab" title="同音字查詢">🔍</button>
 <script>
   (function(){
     "use strict";
@@ -1527,6 +1595,8 @@ try {
       } catch(e) {}
 
       if (active === 'dict') {
+        // 確保粵拼字典已載入
+        loadJyutpingDict();
         const cdNow = (dictVal ? getCharCodes(dictVal.trim()) : null);
         const lettersNow = (!showRad && dictVal && method === 'cangjie') ? extractEnglishLettersFromCharData(cdNow, 'cangjie') : [];
         const sbtn = document.getElementById('ttsSpeakerBtn');
@@ -1741,6 +1811,61 @@ try {
 
       document.getElementById('dictBtnQuick')?.addEventListener('click', () => toggleDictMethodAndRad('quick'));
       document.getElementById('dictBtnCangjie')?.addEventListener('click', () => toggleDictMethodAndRad('cangjie'));
+
+      // 粵拼查詢事件
+      const jyFab = document.getElementById('jyutpingFab');
+      const jyPanel = document.getElementById('jyutpingPanel');
+      const jyClose = document.getElementById('closeJyutping');
+      const jyInput = document.getElementById('jyutpingInput');
+      const jyResults = document.getElementById('jyutpingResults');
+
+      if (jyFab) {
+        jyFab.style.display = (state.activeTab === 'dict' && !state.isTyping) ? 'flex' : 'none';
+        jyFab.addEventListener('click', () => {
+          jyPanel.classList.add('open');
+          jyInput.focus();
+        });
+      }
+
+      if (jyClose) {
+        jyClose.addEventListener('click', () => {
+          jyPanel.classList.remove('open');
+        });
+      }
+
+      if (jyInput) {
+        jyInput.addEventListener('input', (e) => {
+          const val = e.target.value.trim();
+          if (!val) {
+            jyResults.innerHTML = '<div style="color:#475569;text-align:center;padding-top:20px;font-weight:800;">輸入英文字母開始查詢</div>';
+            return;
+          }
+          const results = searchJyutping(val);
+          if (results.length === 0) {
+            jyResults.innerHTML = '<div style="color:#f87171;text-align:center;padding-top:20px;font-weight:800;">未找到相關字</div>';
+          } else {
+            jyResults.innerHTML = results.map(res => `
+              <div class="jyutping-item">
+                <div class="jyutping-label">${res.pinyin.toUpperCase()}</div>
+                <div class="jyutping-chars">
+                  ${res.chars.map(ch => `<button class="jyutping-char-btn" data-pick="${ch}">${ch}</button>`).join('')}
+                </div>
+              </div>
+            `).join('');
+            
+            // 綁定選取事件
+            jyResults.querySelectorAll('.jyutping-char-btn').forEach(btn => {
+              btn.addEventListener('click', () => {
+                const ch = btn.getAttribute('data-pick');
+                state.dictInput = ch;
+                addToDictHistory(ch);
+                jyPanel.classList.remove('open');
+                render();
+              });
+            });
+          }
+        });
+      }
 
       // 曾查單字（自動儲存、最多 60）
       const clearHistBtn = document.getElementById('dictHistoryClear');
@@ -2289,6 +2414,13 @@ try {
     function escapeHtml(str) {
       if (!str) return '';
       return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    // ---------- 註冊 PWA ----------
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(err => console.warn('SW registration failed:', err));
+      });
     }
 
     // ---------- 啟動 ----------
