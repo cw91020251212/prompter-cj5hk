@@ -586,10 +586,10 @@
 	    <button id="closeJyutping" class="jyutping-close">✕</button>
 	  </div>
 	  <div class="jyutping-input-wrap">
-	    <input type="text" id="jyutpingInput" class="jyutping-input" placeholder="輸入粵拼 (例如: ping, ngo)..." autocomplete="off">
+	    <input type="text" id="jyutpingInput" class="jyutping-input" placeholder="輸入粵拼或中文字 (例如: ping, 唔)..." autocomplete="off">
 	  </div>
 	  <div id="jyutpingResults" class="jyutping-results">
-	    <div style="color:#475569;text-align:center;padding-top:20px;font-weight:800;">輸入英文字母開始查詢</div>
+	    <div style="color:#475569;text-align:center;padding-top:20px;font-weight:800;">輸入粵拼或中文字開始查詢</div>
 	  </div>
 	</div>
 	
@@ -1837,7 +1837,7 @@ try {
         jyInput.addEventListener('input', (e) => {
           const val = e.target.value.trim();
           if (!val) {
-            jyResults.innerHTML = '<div style="color:#475569;text-align:center;padding-top:20px;font-weight:800;">輸入英文字母開始查詢</div>';
+            jyResults.innerHTML = '<div style="color:#475569;text-align:center;padding-top:20px;font-weight:800;">輸入粵拼或中文字開始查詢</div>';
             return;
           }
           const results = searchJyutping(val);
@@ -1846,7 +1846,7 @@ try {
           } else {
             jyResults.innerHTML = results.map(res => `
               <div class="jyutping-item">
-                <div class="jyutping-label">${res.pinyin.toUpperCase()}</div>
+                <div class="jyutping-label">${res.pinyin.toUpperCase()}${res.sourceChar ? ` (來自 "${res.sourceChar}" 的讀音)` : ''}</div>
                 <div class="jyutping-chars">
                   ${res.chars.map(ch => `<button class="jyutping-char-btn" data-pick="${ch}">${ch}</button>`).join('')}
                 </div>
