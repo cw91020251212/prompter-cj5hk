@@ -573,6 +573,14 @@
     .tts-rate select{ background:#0b1220; color:#e2e8f0; border:1px solid #334155; border-radius:12px; padding:10px 14px; font-weight:800; font-size: 1.15rem; max-width: 240px; }
     .tts-hint{ font-size:1rem; color:#94a3b8; font-weight:700; margin-top:12px;}
 
+    /* ===== 粵語讀音（喇叭仔）===== */
+    .canto-line{ width:100%; max-width:420px; margin: 6px auto 8px; display:flex; align-items:center; justify-content:center; gap:10px; padding: 10px 12px; border-radius: 16px; background: rgba(15,23,42,0.85); border: 1px solid #334155; }
+    .canto-label{ color:#93c5fd; font-weight:800; font-size: 1.05rem; }
+    .canto-jyut{ color:#e2e8f0; font-weight:800; font-size: 1.15rem; letter-spacing: 0.3px; }
+    .canto-muted{ color:#94a3b8; font-weight:750; font-size: 1.05rem; }
+    .canto-speak-btn{ width:44px; height:44px; border-radius: 14px; border: 1px solid #334155; background: rgba(255,255,255,0.06); color:#e2e8f0; cursor:pointer; font-size: 1.35rem; display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto; }
+    .canto-speak-btn:hover{ border-color:#60a5fa; }
+
 	  /* ===== 首次使用教學指引（Onboarding Tour） ===== */
 	  .tour-overlay{ position:fixed; inset:0; z-index:30000; display:none; }
 	  .tour-overlay.open{ display:block; }
@@ -1410,6 +1418,94 @@ try {
       try { window.speechSynthesis.cancel(); } catch(e) {}
     }
 
+    // ===== 粵語發音（讀出中文字） =====
+    function pickCantoneseVoice() {
+      const voices = getVoicesSafe();
+      if (!voices.length) return null;
+
+      // 優先：zh-HK / yue（粵語）
+      const preferred = voices.find(v => /^zh(-|_)HK/i.test(v.lang))
+        || voices.find(v => /^yue/i.test(v.lang))
+        || voices.find(v => /cantonese/i.test(String(v.name || '')))
+        || voices.find(v => /zh.*HK/i.test(String(v.lang || '')));
+
+      return preferred || null;
+    }
+
+    function canSpeakCantonese() {
+      if (!ttsSupported()) return false;
+      // 某些裝置即使 getVoices() 未即時返，都會遲少少先 ready。
+      // 但為免讀成普通話，我哋以「真係搵到粵語/香港中文 voice」先當支援。
+      return !!pickCantoneseVoice();
+    }
+
+    function speakCantoneseChar(ch) {
+      const txt = String(ch || '').trim();
+      if (!txt) return;
+      if (!ttsSupported()) { alert('⚠️ 呢部裝置/瀏覽器未支援語音朗讀'); return; }
+
+      const v = pickCantoneseVoice();
+      if (!v) {
+        alert('⚠️ 未搵到「粵語／香港中文」人聲（voice）。
+
+你仍然可以睇到粵拼文字；如想一定讀到粵語音，需要：
+- iPhone/iPad：用 Safari + 開「朗讀」人聲（一般有 zh-HK）
+- Mac：系統「語音」加裝中文（香港）
+- 或改用雲端 TTS（Google/Azure）');
+        return;
+      }
+
+      try { window.speechSynthesis.cancel(); } catch(e) {}
+
+      const utter = new SpeechSynthesisUtterance(txt);
+      utter.lang = 'zh-HK';
+      utter.rate = Math.max(0.5, Math.min(1.5, Number(state.ttsRate) || 1.0));
+      utter.voice = v;
+      window.speechSynthesis.speak(utter);
+    }
+
+    function getJyutpingsSyncForChar(ch) {
+      const c = String(ch || '').trim();
+      if (!c || !isChinese(c)) return [];
+      if (!jyutpingLoaded || !window.HKHomophones || !window.HKHomophones.search) return [];
+      try {
+        const groups = window.HKHomophones.search(c, { limitPerReading: 0 });
+        const g0 = groups && groups[0];
+        const pys = (g0 && g0.pinyins) ? g0.pinyins.map(x => x.pinyin).filter(Boolean) : [];
+        // 去重
+        return Array.from(new Set(pys));
+      } catch(e) {
+        return [];
+      }
+    }
+
+    function renderCantoPronounceHtml(ch) {
+      const c = String(ch || '').trim();
+      if (!c) return '';
+      if (!isChinese(c)) return '';
+
+      if (!jyutpingLoaded) {
+        return `
+          <div class="canto-line" id="cantoLine">
+            <button class="canto-speak-btn" id="cantoSpeakBtn" title="讀出粵語發音">🔊</button>
+            <span class="canto-label">粵拼：</span>
+            <span class="canto-muted">載入中…</span>
+          </div>
+        `;
+      }
+
+      const pys = getJyutpingsSyncForChar(c);
+      const pyText = pys.length ? pys.join(' / ') : '';
+
+      return `
+        <div class="canto-line" id="cantoLine">
+          <button class="canto-speak-btn" id="cantoSpeakBtn" title="讀出粵語發音">🔊</button>
+          <span class="canto-label">粵拼：</span>
+          ${pyText ? `<span class="canto-jyut">${escapeHtml(pyText)}</span>` : `<span class="canto-muted">（未有粵拼）</span>`}
+        </div>
+      `;
+    }
+
     function renderTtsBarHtml(lettersKey) {
       const rateLabel = `x${Number(state.ttsRate).toFixed(1)}`;
       const disabledHint = (!ttsSupported()) ? `<div class="tts-hint">（此瀏覽器未支援發音）</div>` : `<div class="tts-hint">（只限倉頡碼＋字母A-Z）</div>`;
@@ -1582,6 +1678,7 @@ try {
                 <div class="dict-caret"></div>
               </div>
             </div>
+            ${renderCantoPronounceHtml(dictVal)}
             <div class="toggle-bar" style="max-width:380px;margin:0 auto 10px;">
               <button id="dictBtnQuick" class="${method==='quick'?'active':''}">
                 <span class="btn-title">速成</span>
@@ -1636,6 +1733,16 @@ try {
         loadJyutpingDict();
         const cdNow = (dictVal ? getCharCodes(dictVal.trim()) : null);
         const lettersNow = (!showRad && dictVal && method === 'cangjie') ? extractEnglishLettersFromCharData(cdNow, 'cangjie') : [];
+
+        const cbtn = document.getElementById('cantoSpeakBtn');
+        if (cbtn) {
+          cbtn.addEventListener('click', () => {
+            const ch = (state.dictInput || '').trim();
+            if (!ch) return;
+            speakCantoneseChar(Array.from(ch)[0]);
+          });
+        }
+
         const sbtn = document.getElementById('ttsSpeakerBtn');
         if (sbtn) {
           sbtn.addEventListener('click', () => {
@@ -2615,6 +2722,7 @@ try {
       if (window.HKHomophones && window.HKHomophones.load) {
         jyutpingData = await window.HKHomophones.load();
         jyutpingLoaded = true;
+        try { if (typeof render === 'function' && state && state.activeTab === 'dict') setTimeout(render, 0); } catch(e) {}
         return jyutpingData;
       }
       // 如果 script 未 ready，等一等（最多 ~2 秒）
@@ -2624,6 +2732,7 @@ try {
         if (window.HKHomophones && window.HKHomophones.load) {
           jyutpingData = await window.HKHomophones.load();
           jyutpingLoaded = true;
+          try { if (typeof render === 'function' && state && state.activeTab === 'dict') setTimeout(render, 0); } catch(e) {}
           return jyutpingData;
         }
       }
