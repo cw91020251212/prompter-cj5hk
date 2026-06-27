@@ -1536,7 +1536,8 @@ try {
         return;
       } catch (e4) {}
 
-      alert('⚠️ 網上朗讀暫時用唔到。\n\n可能原因：\n- 你而家真係離線／網絡不穩\n- Wi‑Fi/公司網絡擋咗 Google（部分 app 會用其他服務，所以仍然有聲）\n- 服務商端點暫時封鎖\n\n建議：\n- 換一個網絡（4G/5G 試一次）\n- 或如果你有 API Key，我可以幫你接 Azure/Google Cloud TTS');
+      const last = state.cantoTtsLastOnlineUrl ? `\n\n最後嘗試網址：\n${state.cantoTtsLastOnlineUrl}` : '';
+      alert('⚠️ 網上朗讀暫時用唔到。\n\n可能原因：\n- 你而家真係離線／網絡不穩\n- Wi‑Fi/公司網絡擋咗 Google（部分 app 會用其他服務，所以仍然有聲）\n- 服務商端點暫時封鎖' + last + '\n\n建議：\n- 換一個網絡（4G/5G 試一次）\n- 或如果你有 API Key，我可以幫你接 Azure/Google Cloud TTS');
     }
 
     async function speakCantoneseChar(ch) {
@@ -1806,7 +1807,7 @@ try {
           </div>
           <div class="dict-area">
             <div id="dictInputWrap" class="dict-input-wrap ${dictVal?'has-value':''}">
-              <input id="dictInput" class="dict-input" type="text" maxlength="1" placeholder="" value="${escapeHtml(dictVal)}" ${isReady?'':'disabled'}>
+              <input id="dictInput" class="dict-input" type="text" maxlength="1" placeholder="" value="${escapeHtml(dictVal)}">
               <div class="dict-pen" aria-hidden="true">
                 <div class="dict-caret"></div>
               </div>
@@ -2088,7 +2089,28 @@ try {
           }
           render();
         });
-        dictInput.addEventListener('focus', (e) => e.target.select());
+        dictInput.addEventListener('focus', (e) => {
+          try { state._dictFocusAt = Date.now(); } catch(err) {}
+          e.target.select();
+        });
+        // iOS/PWA 有時會因為畫面重畫/載入資源導致輸入框瞬間失焦（鍵盤閃一下就縮）。
+        // 下面係保護：如果係「瞬間失焦」，自動再 focus 一次。
+        dictInput.addEventListener('blur', (e) => {
+          try {
+            const t = Date.now();
+            const dt = t - (state._dictFocusAt || 0);
+            if (dt > 0 && dt < 400) {
+              setTimeout(() => {
+                const el = document.getElementById('dictInput');
+                if (!el) return;
+                // 如果用家已經轉去撳同音字面板，唔好搶 focus
+                const ae = document.activeElement;
+                if (ae && (ae.id === 'jyutpingInput' || ae.closest && ae.closest('#jyutpingPanel'))) return;
+                try { el.focus(); } catch(err) {}
+              }, 60);
+            }
+          } catch(err) {}
+        });
         dictInput.addEventListener('click', () => {
           if (!state.dictInput) return;
           state.dictInput = ''; render();
@@ -2877,7 +2899,14 @@ try {
       if (window.HKHomophones && window.HKHomophones.load) {
         jyutpingData = await window.HKHomophones.load();
         jyutpingLoaded = true;
-        try { if (typeof render === 'function' && state && state.activeTab === 'dict') setTimeout(render, 0); } catch(e) {}
+        try {
+          if (typeof render === 'function' && state && state.activeTab === 'dict') {
+            // 避免載入同音字資料時重畫畫面令「查單字輸入格」失焦（手機會鍵盤閃一下就縮）
+            const ae = document.activeElement;
+            const dictFocused = (ae && ae.id === 'dictInput');
+            if (!dictFocused) setTimeout(render, 0);
+          }
+        } catch(e) {}
         return jyutpingData;
       }
       // 如果 script 未 ready，等一等（最多 ~2 秒）
@@ -2887,7 +2916,13 @@ try {
         if (window.HKHomophones && window.HKHomophones.load) {
           jyutpingData = await window.HKHomophones.load();
           jyutpingLoaded = true;
-          try { if (typeof render === 'function' && state && state.activeTab === 'dict') setTimeout(render, 0); } catch(e) {}
+          try {
+            if (typeof render === 'function' && state && state.activeTab === 'dict') {
+              const ae = document.activeElement;
+              const dictFocused = (ae && ae.id === 'dictInput');
+              if (!dictFocused) setTimeout(render, 0);
+            }
+          } catch(e) {}
           return jyutpingData;
         }
       }

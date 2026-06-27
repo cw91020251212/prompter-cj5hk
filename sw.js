@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cangjie-v18';
+const CACHE_NAME = 'cangjie-v19';
 const ASSETS = [
   './',
   './index.html',
