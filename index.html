@@ -209,12 +209,15 @@
     .jyutping-panel {
       position: fixed; bottom: 0; left: 0; right: 0;
       background: #1e293b; border-top: 2px solid #3b82f6;
-      transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      transform: translateY(100%);
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), bottom 0.2s ease;
       z-index: 2000; padding: 16px; border-radius: 24px 24px 0 0;
       box-shadow: 0 -10px 25px rgba(0,0,0,0.5);
       max-height: 85vh; display: flex; flex-direction: column;
     }
     .jyutping-panel.open { transform: translateY(0); }
+    body.softkbd-open .jyutping-panel { bottom: var(--softkbd-height); }
+    body.softkbd-open .jyutping-fab { bottom: calc(92px + var(--softkbd-height)); }
     .jyutping-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
     .jyutping-title { font-weight: 950; color: #60a5fa; font-size: 1.6rem; letter-spacing: 0.02em; }
     .jyutping-close { background: none; border: none; color: #94a3b8; font-size: 2.1rem; cursor: pointer; padding: 6px 10px; }
@@ -570,6 +573,16 @@
     .tts-rate select{ background:#0b1220; color:#e2e8f0; border:1px solid #334155; border-radius:12px; padding:10px 14px; font-weight:800; font-size: 1.15rem; max-width: 240px; }
     .tts-hint{ font-size:1rem; color:#94a3b8; font-weight:700; margin-top:12px;}
 
+    /* ===== 粵語讀音（喇叭仔）===== */
+    .canto-line{ width:100%; max-width:420px; margin: 6px auto 8px; display:flex; align-items:center; justify-content:center; gap:10px; padding: 10px 12px; border-radius: 16px; background: rgba(15,23,42,0.85); border: 1px solid #334155; }
+    .canto-label{ color:#93c5fd; font-weight:800; font-size: 1.05rem; }
+    .canto-jyut{ color:#e2e8f0; font-weight:800; font-size: 1.15rem; letter-spacing: 0.3px; }
+    .canto-muted{ color:#94a3b8; font-weight:750; font-size: 1.05rem; }
+    .canto-speak-btn{ width:44px; height:44px; border-radius: 14px; border: 1px solid #334155; background: rgba(255,255,255,0.06); color:#e2e8f0; cursor:pointer; font-size: 1.35rem; display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto; }
+    .canto-speak-btn:hover{ border-color:#60a5fa; }
+
+    .build-badge{ width:100%; max-width:420px; margin: 6px auto 0; text-align:center; color:#94a3b8; font-size: 0.95rem; }
+
 	  /* ===== 首次使用教學指引（Onboarding Tour） ===== */
 	  .tour-overlay{ position:fixed; inset:0; z-index:30000; display:none; }
 	  .tour-overlay.open{ display:block; }
@@ -787,12 +800,23 @@
       dictStatus = 'loading';
       render();
 
+      async function fetchJsonWithTimeout(url, ms) {
+        const controller = new AbortController();
+        const t = setTimeout(() => controller.abort(), ms);
+        try {
+          const resp = await fetch(url, { cache: 'no-cache', mode: 'cors', signal: controller.signal });
+          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+          return await resp.json();
+        } finally {
+          clearTimeout(t);
+        }
+      }
+
       for (let i = 0; i < SOURCES.length; i++) {
         try {
           const url = SOURCES[i];
-          const resp = await fetch(url, { cache: 'no-cache', mode: 'cors' });
-          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-          const data = await resp.json();
+          const data = await fetchJsonWithTimeout(url, 12000);
+
           let dict = {};
           if (Array.isArray(data)) {
             data.forEach(item => { if (item.length>=2) dict[item[0]] = item[1]; });
@@ -921,6 +945,10 @@
       ttsSettingsOpen: false,
       ttsVoiceURI: '',
       ttsLastSpokenKey: '',
+      cantoTtsMode: 'auto', // auto | local | online
+      cantoTtsOnlineLang: 'yue', // yue | zh-HK
+      cantoTtsLastOnlineUrl: '',
+      _cantoAudio: null,
       _typingHistoryPushed: false,
       hintKbdOn: false
     };
@@ -1003,6 +1031,15 @@ try {
         } else {
           state.ttsMuted = (v === '1');
         }
+      } catch(e) {}
+    })();
+
+    (function initCantoTtsSettings() {
+      try {
+        const mode = localStorage.getItem('cantoTtsMode_v1');
+        if (mode === 'local' || mode === 'online' || mode === 'auto') state.cantoTtsMode = mode;
+        const lang = localStorage.getItem('cantoTtsOnlineLang_v1');
+        if (lang === 'yue' || lang === 'zh-HK') state.cantoTtsOnlineLang = lang;
       } catch(e) {}
     })();
 
@@ -1403,8 +1440,174 @@ try {
       speakOnce();
     }
     function stopSpeaking() {
-      if (!ttsSupported()) return;
-      try { window.speechSynthesis.cancel(); } catch(e) {}
+      // stop both local speechSynthesis and any online-audio fallback
+      try { if (typeof window !== 'undefined' && window.speechSynthesis) window.speechSynthesis.cancel(); } catch(e) {}
+      try {
+        if (state && state._cantoAudio) {
+          state._cantoAudio.pause();
+          state._cantoAudio.currentTime = 0;
+        }
+      } catch(e) {}
+      try { if (state) state._cantoAudio = null; } catch(e) {}
+    }
+
+    // ===== 粵語發音（讀出中文字） =====
+    function pickCantoneseVoice() {
+      const voices = getVoicesSafe();
+      if (!voices.length) return null;
+
+      // 優先：zh-HK / yue（粵語）
+      const preferred = voices.find(v => /^zh(-|_)HK/i.test(v.lang))
+        || voices.find(v => /^yue/i.test(v.lang))
+        || voices.find(v => /cantonese/i.test(String(v.name || '')))
+        || voices.find(v => /zh.*HK/i.test(String(v.lang || '')));
+
+      return preferred || null;
+    }
+
+    function canSpeakCantonese() {
+      if (!ttsSupported()) return false;
+      // 某些裝置即使 getVoices() 未即時返，都會遲少少先 ready。
+      // 但為免讀成普通話，我哋以「真係搵到粵語/香港中文 voice」先當支援。
+      return !!pickCantoneseVoice();
+    }
+
+    function buildOnlineCantoTtsUrl(text) {
+      const q = encodeURIComponent(String(text || '').trim());
+      const lang = (state.cantoTtsOnlineLang === 'zh-HK') ? 'zh-HK' : 'yue';
+      // 預設使用 Google Translate TTS（非官方端點）。
+      // 如你有自家雲端 TTS，可以喺呢度換成你自己嘅 API URL。
+      return `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${lang}&q=${q}`;
+    }
+
+    async function speakCantoneseOnline(text) {
+      const txt = String(text || '').trim();
+      if (!txt) return;
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        alert('⚠️ 而家冇網絡，未能用「網上粵語朗讀」');
+        return;
+      }
+      // 停止本機朗讀 + 舊嘅 online audio
+      stopSpeaking();
+
+      const url = buildOnlineCantoTtsUrl(txt);
+      state.cantoTtsLastOnlineUrl = url;
+
+      try {
+        const audio = new Audio(url);
+        audio.preload = 'auto';
+        state._cantoAudio = audio;
+        await audio.play();
+      } catch (e) {
+        // fallback: 試另一個語碼一次
+        try {
+          const altLang = (state.cantoTtsOnlineLang === 'zh-HK') ? 'yue' : 'zh-HK';
+          const q = encodeURIComponent(txt);
+          const altUrl = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${altLang}&q=${q}`;
+          state.cantoTtsLastOnlineUrl = altUrl;
+          const audio2 = new Audio(altUrl);
+          audio2.preload = 'auto';
+          state._cantoAudio = audio2;
+          await audio2.play();
+          return;
+        } catch (e2) {}
+
+        alert('⚠️ 網上朗讀暫時用唔到（可能被服務商阻擋／地區限制／網絡問題）。\n\n你可以：\n- 轉用「只用本機」（如你部機有 zh-HK / 粵語 voice）\n- 或日後換成你自己嘅雲端 TTS API');
+      }
+    }
+
+    async function speakCantoneseChar(ch) {
+      const txt = String(ch || '').trim();
+      if (!txt) return;
+      const mode = String(state.cantoTtsMode || 'auto');
+
+      // 網上模式唔需要 speechSynthesis
+      if (mode === 'online') {
+        await speakCantoneseOnline(txt);
+        return;
+      }
+
+      if (!ttsSupported()) {
+        // 自動模式：如果本機唔支援 speechSynthesis，仍然嘗試用網上
+        if (mode === 'auto') {
+          await speakCantoneseOnline(txt);
+          return;
+        }
+        alert('⚠️ 呢部裝置/瀏覽器未支援本機語音朗讀');
+        return;
+      }
+
+      const v = pickCantoneseVoice();
+
+      // 2) 強制本機
+      if (mode === 'local') {
+        if (!v) {
+          alert('⚠️ 未搵到「粵語／香港中文」人聲（voice）。\n\n你可以改去「網上」或「自動」模式（需要上網）。');
+          return;
+        }
+        stopSpeaking();
+        const utter = new SpeechSynthesisUtterance(txt);
+        utter.lang = 'zh-HK';
+        utter.rate = Math.max(0.5, Math.min(1.5, Number(state.ttsRate) || 1.0));
+        utter.voice = v;
+        window.speechSynthesis.speak(utter);
+        return;
+      }
+
+      // 3) 自動：本機優先，冇就網上（有網先得）
+      if (v) {
+        stopSpeaking();
+        const utter = new SpeechSynthesisUtterance(txt);
+        utter.lang = 'zh-HK';
+        utter.rate = Math.max(0.5, Math.min(1.5, Number(state.ttsRate) || 1.0));
+        utter.voice = v;
+        window.speechSynthesis.speak(utter);
+        return;
+      }
+
+      await speakCantoneseOnline(txt);
+    }
+
+    function getJyutpingsSyncForChar(ch) {
+      const c = String(ch || '').trim();
+      if (!c || !isChinese(c)) return [];
+      if (!jyutpingLoaded || !window.HKHomophones || !window.HKHomophones.search) return [];
+      try {
+        const groups = window.HKHomophones.search(c, { limitPerReading: 0 });
+        const g0 = groups && groups[0];
+        const pys = (g0 && g0.pinyins) ? g0.pinyins.map(x => x.pinyin).filter(Boolean) : [];
+        // 去重
+        return Array.from(new Set(pys));
+      } catch(e) {
+        return [];
+      }
+    }
+
+    function renderCantoPronounceHtml(ch) {
+      const c = String(ch || '').trim();
+      if (!c) return '';
+      if (!isChinese(c)) return '';
+
+      if (!jyutpingLoaded) {
+        return `
+          <div class="canto-line" id="cantoLine">
+            <button class="canto-speak-btn" id="cantoSpeakBtn" title="讀出粵語發音">🔊</button>
+            <span class="canto-label">粵拼：</span>
+            <span class="canto-muted">載入中…</span>
+          </div>
+        `;
+      }
+
+      const pys = getJyutpingsSyncForChar(c);
+      const pyText = pys.length ? pys.join(' / ') : '';
+
+      return `
+        <div class="canto-line" id="cantoLine">
+          <button class="canto-speak-btn" id="cantoSpeakBtn" title="讀出粵語發音">🔊</button>
+          <span class="canto-label">粵拼：</span>
+          ${pyText ? `<span class="canto-jyut">${escapeHtml(pyText)}</span>` : `<span class="canto-muted">（未有粵拼）</span>`}
+        </div>
+      `;
     }
 
     function renderTtsBarHtml(lettersKey) {
@@ -1433,7 +1636,23 @@ try {
             <span>人聲</span>
             <select id="ttsVoice"><option value="">（預設）</option></select>
           </div>
+          <div class="tts-rate">
+            <span>粵語朗讀</span>
+            <select id="cantoTtsMode">
+              <option value="auto" ${state.cantoTtsMode==='auto'?'selected':''}>自動（本機優先）</option>
+              <option value="local" ${state.cantoTtsMode==='local'?'selected':''}>只用本機</option>
+              <option value="online" ${state.cantoTtsMode==='online'?'selected':''}>只用網上</option>
+            </select>
+          </div>
+          <div class="tts-rate">
+            <span>網上語系</span>
+            <select id="cantoTtsOnlineLang">
+              <option value="yue" ${state.cantoTtsOnlineLang==='yue'?'selected':''}>yue（粵語）</option>
+              <option value="zh-HK" ${state.cantoTtsOnlineLang==='zh-HK'?'selected':''}>zh-HK（香港中文）</option>
+            </select>
+          </div>
           ${disabledHint}
+          <div class="tts-hint">（粵語：自動模式會喺冇本機 voice 時改用網上朗讀；需要上網）</div>
         </div>
       `;
     }
@@ -1443,6 +1662,8 @@ try {
       const rateLabel = document.getElementById('ttsRateLabel');
       const repeatSel = document.getElementById('ttsRepeat');
       const voiceSel = document.getElementById('ttsVoice');
+      const cantoModeSel = document.getElementById('cantoTtsMode');
+      const cantoLangSel = document.getElementById('cantoTtsOnlineLang');
       const closeBtn = document.getElementById('ttsSettingsClose');
 
       const populateVoices = () => {
@@ -1475,6 +1696,20 @@ try {
         try { window.speechSynthesis.onvoiceschanged = populateVoices; } catch(e) {}
         voiceSel.addEventListener('change', () => { state.ttsVoiceURI = String(voiceSel.value || ''); });
       }
+      if (cantoModeSel) {
+        cantoModeSel.addEventListener('change', () => {
+          const v = String(cantoModeSel.value || 'auto');
+          state.cantoTtsMode = (v === 'local' || v === 'online' || v === 'auto') ? v : 'auto';
+          try { localStorage.setItem('cantoTtsMode_v1', state.cantoTtsMode); } catch(e) {}
+        });
+      }
+      if (cantoLangSel) {
+        cantoLangSel.addEventListener('change', () => {
+          const v = String(cantoLangSel.value || 'yue');
+          state.cantoTtsOnlineLang = (v === 'zh-HK') ? 'zh-HK' : 'yue';
+          try { localStorage.setItem('cantoTtsOnlineLang_v1', state.cantoTtsOnlineLang); } catch(e) {}
+        });
+      }
       document.addEventListener('click', (e) => {
         const panel = document.querySelector('.tts-float-panel');
         if (!panel || !panel.classList.contains('open')) return;
@@ -1493,12 +1728,35 @@ try {
     }
 
     function getStatusBanner() {
+      // 如果用 file:// 直接打開，部分瀏覽器會限制 fetch/音訊等功能。
+      // 為免測試時長期擋住畫面：
+      // - 只喺 file:// 先顯示
+      // - 可以按 ✕ 關閉
+      // - 關閉後會記入 localStorage（同一部機唔會再彈）
+      let fileProtoHint = '';
+      try {
+        const dismissed = (localStorage.getItem('hideFileProtoHint_v1') === '1');
+        if (location.protocol === 'file:' && !dismissed) {
+          fileProtoHint = `
+            <div class="status-banner" id="fileProtoHint" style="background:#1f2937;border-color:#334155;display:flex;gap:10px;align-items:flex-start;">
+              <div style="flex:1;">
+                ⚠️ 你而家係用 <b>file://</b> 直接開。
+                <br>部分功能（同音字資料載入、網上朗讀、下載完整碼表）可能會被瀏覽器封鎖。
+                <br>建議用 <b>http://localhost</b> 方式開（例如：
+                <span style="font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;">python -m http.server 5173</span>）。
+              </div>
+              <button id="dismissFileProtoHint" title="唔再顯示" style="width:34px;height:34px;border-radius:10px;border:1px solid #334155;background:rgba(255,255,255,0.06);color:#e2e8f0;font-weight:900;cursor:pointer;">✕</button>
+            </div>
+          `;
+        }
+      } catch(e) {}
+
       if (dictStatus === 'ready') {
-        return ``;
+        return fileProtoHint;
       } else if (dictStatus === 'embedded') {
-        return ``;
+        return fileProtoHint;
       } else if (dictStatus === 'loading') {
-        return `<div class="status-banner">⏳ 正在下載完整倉頡碼表…</div>`;
+        return fileProtoHint + `<div class="status-banner">⏳ 正在下載完整倉頡碼表…（最多等 10-15 秒，之後會自動用內置碼表）</div>`;
       } else if (dictStatus === 'error') {
         return `<div class="status-banner error">
           ❌ 自動下載失敗，請手動上傳碼表（JSON）<span style="font-weight:600;opacity:.9">（如果你係用 file:// 直接開檔，建議用 http server 開啟）</span>
@@ -1579,6 +1837,7 @@ try {
                 <div class="dict-caret"></div>
               </div>
             </div>
+            ${renderCantoPronounceHtml(dictVal)}
             <div class="toggle-bar" style="max-width:380px;margin:0 auto 10px;">
               <button id="dictBtnQuick" class="${method==='quick'?'active':''}">
                 <span class="btn-title">速成</span>
@@ -1596,6 +1855,7 @@ try {
             <div class="result-box" id="dictResult">
               ${isReady ? (dictVal ? renderCodeBlocks(charData, dictVal.trim(), method, showRad) : `<div class="result-placeholder">手寫或輸入單字即時解碼</div>`) : `<div style="color:#94a3b8;">⏳ 碼表載入中，請稍後…</div>`}
             </div>
+            <div class="build-badge">更新版本：2026-06-27（粵語喇叭版 v3：修正電腦上傳卡住＋下載逾時回退）</div>
 
             ${renderDictHistoryHtml()}
 
@@ -1633,6 +1893,16 @@ try {
         loadJyutpingDict();
         const cdNow = (dictVal ? getCharCodes(dictVal.trim()) : null);
         const lettersNow = (!showRad && dictVal && method === 'cangjie') ? extractEnglishLettersFromCharData(cdNow, 'cangjie') : [];
+
+        const cbtn = document.getElementById('cantoSpeakBtn');
+        if (cbtn) {
+          cbtn.addEventListener('click', () => {
+            const ch = (state.dictInput || '').trim();
+            if (!ch) return;
+            speakCantoneseChar(Array.from(ch)[0]);
+          });
+        }
+
         const sbtn = document.getElementById('ttsSpeakerBtn');
         if (sbtn) {
           sbtn.addEventListener('click', () => {
@@ -1719,6 +1989,27 @@ try {
       if (retryBtn) {
         retryBtn.addEventListener('click', () => {
           fetchDictWithRetry();
+        });
+      }
+
+      // 關閉 file:// 提示（唔再顯示）
+      const dismissHint = document.getElementById('dismissFileProtoHint');
+      if (dismissHint && !dismissHint.dataset.bound) {
+        dismissHint.dataset.bound = '1';
+        dismissHint.addEventListener('click', (e) => {
+          e.preventDefault();
+          try { localStorage.setItem('hideFileProtoHint_v1', '1'); } catch(err) {}
+          try { document.getElementById('fileProtoHint')?.remove(); } catch(err) {}
+        });
+      }
+
+      // 兼容：status banner 入面嘅手動上傳 input（id=fileUpload）
+      const fileUpload = document.getElementById('fileUpload');
+      if (fileUpload && !fileUpload.dataset.bound) {
+        fileUpload.dataset.bound = '1';
+        fileUpload.addEventListener('change', (e) => {
+          const f = e.target && e.target.files ? e.target.files[0] : null;
+          if (f) loadDictFromFile(f);
         });
       }
 
@@ -2612,6 +2903,7 @@ try {
       if (window.HKHomophones && window.HKHomophones.load) {
         jyutpingData = await window.HKHomophones.load();
         jyutpingLoaded = true;
+        try { if (typeof render === 'function' && state && state.activeTab === 'dict') setTimeout(render, 0); } catch(e) {}
         return jyutpingData;
       }
       // 如果 script 未 ready，等一等（最多 ~2 秒）
@@ -2621,6 +2913,7 @@ try {
         if (window.HKHomophones && window.HKHomophones.load) {
           jyutpingData = await window.HKHomophones.load();
           jyutpingLoaded = true;
+          try { if (typeof render === 'function' && state && state.activeTab === 'dict') setTimeout(render, 0); } catch(e) {}
           return jyutpingData;
         }
       }
