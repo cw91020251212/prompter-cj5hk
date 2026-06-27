@@ -945,7 +945,7 @@
       ttsSettingsOpen: false,
       ttsVoiceURI: '',
       ttsLastSpokenKey: '',
-      cantoTtsMode: 'auto', // auto | local | online
+      cantoTtsMode: 'online', // 固定：只用網上朗讀
       cantoTtsOnlineLang: 'yue', // yue | zh-HK
       cantoTtsLastOnlineUrl: '',
       _cantoAudio: null,
@@ -1035,9 +1035,9 @@ try {
     })();
 
     (function initCantoTtsSettings() {
+      // 簡化：固定只用「網上朗讀」；冇網就提示。
+      try { state.cantoTtsMode = 'online'; } catch(e) {}
       try {
-        const mode = localStorage.getItem('cantoTtsMode_v1');
-        if (mode === 'local' || mode === 'online' || mode === 'auto') state.cantoTtsMode = mode;
         const lang = localStorage.getItem('cantoTtsOnlineLang_v1');
         if (lang === 'yue' || lang === 'zh-HK') state.cantoTtsOnlineLang = lang;
       } catch(e) {}
@@ -1517,54 +1517,9 @@ try {
     }
 
     async function speakCantoneseChar(ch) {
+      // 簡化：固定只用網上朗讀
       const txt = String(ch || '').trim();
       if (!txt) return;
-      const mode = String(state.cantoTtsMode || 'auto');
-
-      // 網上模式唔需要 speechSynthesis
-      if (mode === 'online') {
-        await speakCantoneseOnline(txt);
-        return;
-      }
-
-      if (!ttsSupported()) {
-        // 自動模式：如果本機唔支援 speechSynthesis，仍然嘗試用網上
-        if (mode === 'auto') {
-          await speakCantoneseOnline(txt);
-          return;
-        }
-        alert('⚠️ 呢部裝置/瀏覽器未支援本機語音朗讀');
-        return;
-      }
-
-      const v = pickCantoneseVoice();
-
-      // 2) 強制本機
-      if (mode === 'local') {
-        if (!v) {
-          alert('⚠️ 未搵到「粵語／香港中文」人聲（voice）。\n\n你可以改去「網上」或「自動」模式（需要上網）。');
-          return;
-        }
-        stopSpeaking();
-        const utter = new SpeechSynthesisUtterance(txt);
-        utter.lang = 'zh-HK';
-        utter.rate = Math.max(0.5, Math.min(1.5, Number(state.ttsRate) || 1.0));
-        utter.voice = v;
-        window.speechSynthesis.speak(utter);
-        return;
-      }
-
-      // 3) 自動：本機優先，冇就網上（有網先得）
-      if (v) {
-        stopSpeaking();
-        const utter = new SpeechSynthesisUtterance(txt);
-        utter.lang = 'zh-HK';
-        utter.rate = Math.max(0.5, Math.min(1.5, Number(state.ttsRate) || 1.0));
-        utter.voice = v;
-        window.speechSynthesis.speak(utter);
-        return;
-      }
-
       await speakCantoneseOnline(txt);
     }
 
@@ -1638,11 +1593,7 @@ try {
           </div>
           <div class="tts-rate">
             <span>粵語朗讀</span>
-            <select id="cantoTtsMode">
-              <option value="auto" ${state.cantoTtsMode==='auto'?'selected':''}>自動（本機優先）</option>
-              <option value="local" ${state.cantoTtsMode==='local'?'selected':''}>只用本機</option>
-              <option value="online" ${state.cantoTtsMode==='online'?'selected':''}>只用網上</option>
-            </select>
+            <span style="font-weight:900;color:#e2e8f0;">只用網上（需上網）</span>
           </div>
           <div class="tts-rate">
             <span>網上語系</span>
@@ -1652,7 +1603,7 @@ try {
             </select>
           </div>
           ${disabledHint}
-          <div class="tts-hint">（粵語：自動模式會喺冇本機 voice 時改用網上朗讀；需要上網）</div>
+          <div class="tts-hint">（粵語朗讀固定用網上：冇上網就會提示）</div>
         </div>
       `;
     }
@@ -1662,7 +1613,6 @@ try {
       const rateLabel = document.getElementById('ttsRateLabel');
       const repeatSel = document.getElementById('ttsRepeat');
       const voiceSel = document.getElementById('ttsVoice');
-      const cantoModeSel = document.getElementById('cantoTtsMode');
       const cantoLangSel = document.getElementById('cantoTtsOnlineLang');
       const closeBtn = document.getElementById('ttsSettingsClose');
 
@@ -1695,13 +1645,6 @@ try {
         populateVoices();
         try { window.speechSynthesis.onvoiceschanged = populateVoices; } catch(e) {}
         voiceSel.addEventListener('change', () => { state.ttsVoiceURI = String(voiceSel.value || ''); });
-      }
-      if (cantoModeSel) {
-        cantoModeSel.addEventListener('change', () => {
-          const v = String(cantoModeSel.value || 'auto');
-          state.cantoTtsMode = (v === 'local' || v === 'online' || v === 'auto') ? v : 'auto';
-          try { localStorage.setItem('cantoTtsMode_v1', state.cantoTtsMode); } catch(e) {}
-        });
       }
       if (cantoLangSel) {
         cantoLangSel.addEventListener('change', () => {
@@ -1855,7 +1798,7 @@ try {
             <div class="result-box" id="dictResult">
               ${isReady ? (dictVal ? renderCodeBlocks(charData, dictVal.trim(), method, showRad) : `<div class="result-placeholder">手寫或輸入單字即時解碼</div>`) : `<div style="color:#94a3b8;">⏳ 碼表載入中，請稍後…</div>`}
             </div>
-            <div class="build-badge">更新版本：2026-06-27（粵語喇叭版 v3：修正電腦上傳卡住＋下載逾時回退）</div>
+
 
             ${renderDictHistoryHtml()}
 
