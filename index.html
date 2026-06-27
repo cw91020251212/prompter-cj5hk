@@ -150,6 +150,7 @@
 
     .dict-top { width: 100%; display:flex; align-items:center; justify-content:space-between; margin-bottom: 8px; }
     .dict-top button { background: rgba(255,255,255,0.06); border: 1px solid #334155; color: #e2e8f0; width: 44px; height: 44px; border-radius: 14px; font-size: 1.6rem; font-weight: 900; cursor: pointer; }
+    #dictSpeakBtn { color: #ffffff; filter: drop-shadow(0 0 1px white) brightness(1.5); }
     .dict-top button:active { transform: translateY(1px); }
 
     .dict-top button:disabled { opacity: 0.35; cursor: not-allowed; }
@@ -211,10 +212,13 @@
       position: fixed; bottom: 0; left: 0; right: 0;
       background: #1e293b; border-top: 2px solid #3b82f6;
       transform: translateY(100%);
-      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), bottom 0.2s ease;
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), bottom 0.2s ease, max-height 0.2s ease;
       z-index: 2000; padding: 16px; border-radius: 24px 24px 0 0;
       box-shadow: 0 -10px 25px rgba(0,0,0,0.5);
-      max-height: 85vh; display: flex; flex-direction: column;
+      max-height: 85vh; 
+      /* 使用動態高度以確保頂部唔會超出螢幕 */
+      max-height: calc(100dvh - 20px);
+      display: flex; flex-direction: column;
     }
     .jyutping-panel.open { transform: translateY(0); }
 
@@ -227,12 +231,21 @@
     }
     .jyutping-backdrop.open{ opacity: 1; pointer-events: auto; }
 
-    body.softkbd-open .jyutping-panel { bottom: var(--softkbd-height); }
+    body.softkbd-open .jyutping-panel { 
+      bottom: var(--softkbd-height); 
+      max-height: calc(100dvh - var(--softkbd-height) - 10px);
+    }
     body.softkbd-open .jyutping-fab { bottom: calc(92px + var(--softkbd-height)); }
-    .jyutping-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .jyutping-header { 
+      display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; 
+      background: #1e293b; position: sticky; top: -16px; z-index: 10; padding-top: 4px;
+    }
     .jyutping-title { font-weight: 950; color: #60a5fa; font-size: 1.6rem; letter-spacing: 0.02em; }
     .jyutping-close { background: none; border: none; color: #94a3b8; font-size: 2.1rem; cursor: pointer; padding: 6px 10px; }
-    .jyutping-input-wrap { position: relative; margin-bottom: 12px; }
+    .jyutping-input-wrap { 
+      position: sticky; top: 40px; z-index: 10; 
+      background: #1e293b; margin-bottom: 12px; padding-bottom: 4px;
+    }
     .jyutping-input {
       width: 100%; background: #0f172a; border: 2px solid #334155; border-radius: 14px;
       padding: 16px 18px; color: white; font-size: 1.6rem; outline: none;
@@ -656,10 +669,11 @@
 		  <div class="jyutping-input-wrap">
 		    <input type="text" id="jyutpingInput" class="jyutping-input" placeholder="輸入中文字（可多字，例如：我哋）" autocomplete="off">
 		  </div>
-		  <div class="jyutping-actions">
-		    <button id="jyutpingClearBtn">清空</button>
-		    <button id="jyutpingSelfTestBtn" class="primary">自檢同音</button>
-		  </div>
+			  <div class="jyutping-actions">
+			    <button id="jyutpingClearBtn">清空</button>
+			    <button id="jyutpingRegionBtn" title="切換拼音習慣（香港/大陸）">地區: 香港</button>
+			    <button id="jyutpingSelfTestBtn" class="primary">自檢</button>
+			  </div>
 		  <div id="jyutpingResults" class="jyutping-results">
 		    <div class="jyutping-empty">輸入中文開始查詢</div>
 		  </div>
@@ -2294,6 +2308,7 @@ try {
       const jyResults = document.getElementById('jyutpingResults');
       const jyBackdrop = document.getElementById('jyutpingBackdrop');
       const jyClear = document.getElementById('jyutpingClearBtn');
+      const jyRegionBtn = document.getElementById('jyutpingRegionBtn');
       const jySelfTestBtn = document.getElementById('jyutpingSelfTestBtn');
 
       // 每次 render 都更新顯示/隱藏，但事件只綁一次（避免重覆綁定）
@@ -2401,6 +2416,19 @@ try {
           jyInput.value = '';
           jyResults.innerHTML = '<div class="jyutping-empty">輸入中文開始查詢</div>';
           jyInput.focus();
+        });
+      }
+
+      if (jyRegionBtn && !jyRegionBtn.dataset.bound) {
+        jyRegionBtn.dataset.bound = '1';
+        jyRegionBtn.addEventListener('click', () => {
+          if (!window.HKHomophones) return;
+          const current = window.HKHomophones.getRegion();
+          const next = current === 'HK' ? 'CN' : 'HK';
+          window.HKHomophones.setRegion(next);
+          jyRegionBtn.innerText = `地區: ${next === 'HK' ? '香港' : '大陸'}`;
+          // 重新觸發查詢以套用新規則
+          try { window.__performJyHomophoneSearch && window.__performJyHomophoneSearch(); } catch(e) {}
         });
       }
 
@@ -3157,3 +3185,4 @@ try {
 </script>
 </body>
 </html>
+

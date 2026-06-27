@@ -22,6 +22,7 @@
   let dict = null;
   let freqRank = null;
   let loadingPromise = null;
+  let region = 'HK'; // 預設香港地區
 
   // —— 粵語口語常用字（補強：一般普通話字頻表未必包晒）——
   // 註：呢度只係排序用嘅優先清單；唔會影響你查到嘅字。
@@ -244,9 +245,18 @@
     // 兼容：香港常見用 Yale / 普通話習慣輸入
     // 例：用家輸入 ying（英），字典 key 其實係 Jyutping：jing
     const ALIAS = {
-      ying: 'jing'
+      ying: 'jing',
+      law: 'lo'
     };
-    const q = ALIAS[raw] || raw;
+    let q = ALIAS[raw] || raw;
+    
+    // 特殊處理 "wu"：香港 (HK) 指 "胡" (wu)，大陸 (CN) 指 "吳" (ng/wu)
+    // 實際上在粵拼中，吳是 ng，胡是 wu。但用戶提到大陸 wu 解吳。
+    // 我們在這裡做一個映射轉向。
+    if (q === 'wu' && region === 'CN') {
+      q = 'ng'; 
+    }
+    
     const usedAlias = (q !== raw);
 
     const keys = Object.keys(dict.pinyin_to_chars || {});
@@ -296,6 +306,8 @@
     search,
     searchByPinyin,
     isHan,
-    _debug: () => ({ dictLoaded: !!dict, dict, freqLoaded: !!freqRank, freqRank })
+    setRegion: (r) => { region = r; },
+    getRegion: () => region,
+    _debug: () => ({ dictLoaded: !!dict, dict, freqLoaded: !!freqRank, freqRank, region })
   };
 })();
