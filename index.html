@@ -152,6 +152,7 @@
     .dict-top button { background: rgba(255,255,255,0.06); border: 1px solid #334155; color: #e2e8f0; width: 44px; height: 44px; border-radius: 14px; font-size: 1.6rem; font-weight: 900; cursor: pointer; }
     .dict-top button:active { transform: translateY(1px); }
 
+    .dict-top button:disabled { opacity: 0.35; cursor: not-allowed; }
     .result-box {
       width: 100%; background: #0b1220; border: 2px solid #334155; border-radius: 24px; padding: 24px 12px; min-height: 150px; display: flex; flex-direction: column; align-items: center; justify-content: center; margin-top: 8px;
     }
@@ -216,6 +217,16 @@
       max-height: 85vh; display: flex; flex-direction: column;
     }
     .jyutping-panel.open { transform: translateY(0); }
+
+    .jyutping-backdrop{
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.45);
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.2s ease;
+      z-index: 1990;
+    }
+    .jyutping-backdrop.open{ opacity: 1; pointer-events: auto; }
+
     body.softkbd-open .jyutping-panel { bottom: var(--softkbd-height); }
     body.softkbd-open .jyutping-fab { bottom: calc(92px + var(--softkbd-height)); }
     .jyutping-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
@@ -634,6 +645,7 @@
 </head>
 <body>
 	<div id="root"></div>
+	<div id="jyutpingBackdrop" class="jyutping-backdrop" aria-hidden="true"></div>
 	
 	<!-- 粵語同音字查詢面板（NEW v20260626，取代舊版） -->
 		<div id="jyutpingPanel" class="jyutping-panel" aria-label="粵語同音字">
@@ -1854,9 +1866,64 @@ try {
       if (state.activeTab === 'dict' && !tourDone('dict')) startDictTour();
     }
 
-    // ===== 發聲／朗讀功能已移除（2026-06-27） =====
-    // 為咗避免手機/PWA 因音訊/重畫面造成輸入問題，已完全移除。
-    function stopSpeaking() { /* no-op */ }
+    // ===== 發聲（可選／按鈕觸發）=====
+    // 2026-06-27 曾移除自動朗讀以避免手機/PWA 問題。
+    // 目前只保留『手動按鍵』讀單字：如裝置有 zh-HK / yue 語音就會出聲，冇就靜默。
+    function stopSpeaking(){
+      try { window.speechSynthesis && window.speechSynthesis.cancel(); } catch(e) {}
+    }
+
+    function pickCantoneseVoice(){
+      try {
+        const voices = window.speechSynthesis ? window.speechSynthesis.getVoices() : [];
+        if (!voices || !voices.length) return null;
+        const prefer = (v)=>{
+          const lang = String(v.lang||'').toLowerCase();
+          const name = String(v.name||'').toLowerCase();
+          return (lang === 'zh-hk') || lang.startsWith('zh-hk') || lang.startsWith('yue') || name.includes('cantonese') || name.includes('粵');
+        };
+        return voices.find(prefer) || null;
+      } catch(e){ return null; }
+    }
+
+    function waitVoices(ms){
+      return new Promise((resolve)=>{
+        try {
+          if (!window.speechSynthesis) return resolve();
+          const voices = window.speechSynthesis.getVoices();
+          if (voices && voices.length) return resolve();
+          let done = false;
+          const t = setTimeout(()=>{ if(done) return; done=true; resolve(); }, ms||700);
+          window.speechSynthesis.onvoiceschanged = ()=>{
+            if(done) return;
+            done = true;
+            clearTimeout(t);
+            resolve();
+          };
+        } catch(e){ resolve(); }
+      });
+    }
+
+    async function speakCantoneseChar(ch){
+      try {
+        ch = String(ch||'').trim();
+        if (!ch) return false;
+        if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) return false;
+        await waitVoices(700);
+        const voice = pickCantoneseVoice();
+        if (!voice) return false;
+        stopSpeaking();
+        const u = new SpeechSynthesisUtterance(ch);
+        u.voice = voice;
+        u.lang = voice.lang || 'zh-HK';
+        u.rate = 0.9;
+        u.pitch = 1.0;
+        window.speechSynthesis.speak(u);
+        return true;
+      } catch(e){
+        return false;
+      }
+    }
 
     function getStatusBanner() {
       if (dictStatus === 'ready') {
@@ -1937,6 +2004,7 @@ try {
           <div class="dict-top">
             <button id="backToPrompter" aria-label="返回">✕</button>
             <button id="replayTourBtn" style="width:auto;height:44px;padding:0 14px;font-size:1.05rem;border-radius:14px;" title="重播教學">🎓 教學</button>
+            <button id="dictSpeakBtn" aria-label="聽粵音" ${dictVal?'':'disabled'} title="🔊 聽粵音（如支援）">🔊</button>
           </div>
           <div class="dict-area">
             <div id="dictInputWrap" class="dict-input-wrap ${dictVal?'has-value':''}">
@@ -2047,6 +2115,16 @@ try {
         replayBtn.addEventListener('click', (e) => {
           e.preventDefault();
           replayTourForCurrentTab();
+        });
+      }
+
+      const speakBtn = document.getElementById('dictSpeakBtn');
+      if (speakBtn) {
+        speakBtn.addEventListener('click', async (e) => {
+          e.preventDefault();
+          const ch = String(state.dictInput || '').trim();
+          if (!ch) return;
+          await speakCantoneseChar(ch);
         });
       }
 
@@ -2214,6 +2292,7 @@ try {
       const jyClose = document.getElementById('closeJyutping');
       const jyInput = document.getElementById('jyutpingInput');
       const jyResults = document.getElementById('jyutpingResults');
+      const jyBackdrop = document.getElementById('jyutpingBackdrop');
       const jyClear = document.getElementById('jyutpingClearBtn');
       const jySelfTestBtn = document.getElementById('jyutpingSelfTestBtn');
 
@@ -2225,12 +2304,12 @@ try {
           jyFab.addEventListener('click', async () => {
             try {
               jyPanel.classList.add('open');
+              if (jyBackdrop) jyBackdrop.classList.add('open');
               if (jyInput) {
-                // 方便：自動帶入（優先：目前查字欄 → 上次查字記憶 → 最近查過第一個）
-                if (!jyInput.value.trim()) {
-                  const fallback = state.dictInput || state.lastDictChar || (Array.isArray(state.dictHistory) ? state.dictHistory[0] : '');
-                  if (fallback) jyInput.value = String(fallback);
-                }
+                // 方案 B：每次打開都以『主角字』為預設；同時唔保留上次面板輸入
+                jyInput.value = '';
+                const fallback = state.dictInput || state.lastDictChar || (Array.isArray(state.dictHistory) ? state.dictHistory[0] : '');
+                if (fallback) jyInput.value = String(fallback);
                 jyInput.focus();
               }
               if (!jyutpingLoaded) {
@@ -2248,9 +2327,30 @@ try {
 
       if (jyClose && !jyClose.dataset.bound) {
         jyClose.dataset.bound = '1';
-        jyClose.addEventListener('click', () => {
+        const closeJy = () => {
           try { jyPanel.classList.remove('open'); } catch(e) {}
-        });
+          if (jyBackdrop) { try { jyBackdrop.classList.remove('open'); } catch(e) {} }
+          if (jyInput) jyInput.value = '';
+          if (jyResults) jyResults.innerHTML = '<div class="jyutping-empty">輸入中文開始查詢</div>';
+        };
+        jyClose.addEventListener('click', closeJy);
+
+        if (jyBackdrop && !jyBackdrop.dataset.bound) {
+          jyBackdrop.dataset.bound = '1';
+          jyBackdrop.addEventListener('click', closeJy);
+        }
+
+        if (!window.__jyEscBound) {
+          window.__jyEscBound = true;
+          document.addEventListener('keydown', (e) => {
+            try {
+              if (e.key === 'Escape' && jyPanel && jyPanel.classList.contains('open')) closeJy();
+            } catch(err) {}
+          });
+        }
+
+        // 讓其他地方（例如揀同音字）都可以用
+        window.__closeJyutpingPanel = closeJy;
       }
 
       if (jyClear && !jyClear.dataset.bound) {
@@ -2306,7 +2406,7 @@ try {
               if (!ch) return;
               state.dictInput = ch;
               addToDictHistory(ch);
-              try { jyPanel.classList.remove('open'); } catch(e) {}
+              try { window.__closeJyutpingPanel && window.__closeJyutpingPanel(); } catch(e) {}
               render();
             });
           });
