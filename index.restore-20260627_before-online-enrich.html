@@ -295,22 +295,6 @@
     .relw-chip:hover{ border-color:#60a5fa; background: rgba(96,165,250,0.14); }
     .relw-sub{ color:#94a3b8; font-weight: 750; font-size: 0.95rem; margin-top: 8px; }
 
-    /* 查單字：在線補充（拼音 / 近似字 / 普通話同音字） */
-    .cex{ width: 100%; max-width: 420px; margin: 10px auto 0; background:#0b1220; border: 1px solid #334155; border-radius: 18px; padding: 12px; }
-    .cex-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom: 8px; flex-wrap: wrap; }
-    .cex-title{ color:#a7f3d0; font-weight: 950; font-size: 1.1rem; }
-    .cex-status{ color:#94a3b8; font-weight: 900; font-size: 0.95rem; padding: 4px 10px; border-radius: 999px; border:1px solid #334155; background: rgba(255,255,255,0.04); }
-    .cex-status.online{ color:#6ee7b7; border-color: rgba(16,185,129,0.45); background: rgba(6,95,70,0.25); }
-    .cex-status.offline{ color:#fca5a5; border-color: rgba(239,68,68,0.45); background: rgba(127,29,29,0.25); }
-    .cex-retry{ background: rgba(255,255,255,0.06); border: 1px solid #334155; color:#e2e8f0; padding: 8px 12px; border-radius: 999px; font-weight: 900; cursor: pointer; font-size: 0.95rem; }
-    .cex-retry:hover{ border-color:#34d399; }
-    .cex-row{ margin-top: 10px; }
-    .cex-row-title{ color:#94a3b8; font-weight: 950; font-size: 0.95rem; margin-bottom: 8px; }
-    .cex-chip{ border:1px solid rgba(16,185,129,0.45); background: rgba(6,95,70,0.18); color:#e2e8f0; font-weight: 900; font-size: 1.05rem; padding: 10px 12px; border-radius: 999px; cursor:pointer; }
-    .cex-chip:hover{ border-color:#34d399; background: rgba(52,211,153,0.16); }
-    .cex-chips{ display:flex; flex-wrap:wrap; gap:10px; }
-    .cex-muted{ color:#94a3b8; font-weight: 800; font-size: 1.05rem; padding: 6px 0; }
-
     .dict-hitem{ display:inline-flex; align-items:stretch; border-radius: 999px; overflow:hidden; border: 1px solid #334155; background: rgba(255,255,255,0.04); }
     .dict-hpick{ appearance:none; border:0; background: transparent; color:#f8fafc; font-weight: 650; padding: 12px 16px; cursor:pointer; min-width: 56px; font-size: 1.6rem; line-height: 1.1; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
     .dict-hpick:hover{ background: rgba(96,165,250,0.14); }
@@ -958,14 +942,6 @@ try {
       state.dictHistory = arr.slice(0, 60);
     } catch(e) {}
 
-    // 記住上一次查過邊個字（俾同音字預設值用）
-    const LAST_DICT_CHAR_LS_KEY = 'hk_last_dict_char_v1';
-    try {
-      const last = String(localStorage.getItem(LAST_DICT_CHAR_LS_KEY) || '').trim();
-      state.lastDictChar = last ? Array.from(last)[0] : '';
-    } catch(e) { state.lastDictChar = ''; }
-
-
     function saveDictHistory(){
       try { localStorage.setItem('dictHistory_v1', JSON.stringify(state.dictHistory || [])); } catch(e) {}
     }
@@ -977,9 +953,6 @@ try {
       const arr = Array.isArray(state.dictHistory) ? state.dictHistory.slice() : [];
       const next = [ch, ...arr.filter(x=>x!==ch)].slice(0, 60);
       state.dictHistory = next;
-      // 同步：俾「同音字」面板做預設值
-      state.lastDictChar = ch;
-      try { localStorage.setItem(LAST_DICT_CHAR_LS_KEY, ch); } catch(e) {}
       saveDictHistory();
     }
     function removeFromDictHistory(ch){
@@ -1087,9 +1060,9 @@ try {
       const body = (!relWordsLoaded)
         ? `<div class="relw-muted">（正在載入常用詞庫…）</div>`
         : (() => {
-            const words = (typeof getEnhancedRelatedWordsForChar === 'function' ? getEnhancedRelatedWordsForChar(one) : (getRelatedWordsForChar(one) || []));
+            const words = getRelatedWordsForChar(one) || [];
             if (!words.length) return `<div class="relw-muted">（未有建議）</div>`;
-            const chips = words.slice(0, 36).map(w => {
+            const chips = words.slice(0, 18).map(w => {
               const safe = escapeHtml(String(w));
               return `<button class="relw-chip" data-relw="${safe}" title="點擊複製">${safe}</button>`;
             }).join('');
@@ -1122,29 +1095,12 @@ try {
           await loadRelatedWordsIndex();
         }
 
-        // 如有上網，順手補充在線常用詞（唔影響離線）
-        try {
-          if (navigator.onLine !== false) {
-            ensureOnlineExtras(one).then(() => {
-              try {
-                const words2 = getEnhancedRelatedWordsForChar(one) || [];
-                if (!words2.length) return;
-                const chips2 = words2.slice(0, 36).map(w => {
-                  const safe = escapeHtml(String(w));
-                  return `<button class="relw-chip" data-relw="${safe}" title="點擊複製">${safe}</button>`;
-                }).join('');
-                body.innerHTML = `<div class="relw-chips">${chips2}</div><div class="relw-sub">（點一下可複製）</div>`;
-              } catch(e) {}
-            });
-          }
-        } catch(e) {}
-
-        const words = (typeof getEnhancedRelatedWordsForChar === 'function' ? getEnhancedRelatedWordsForChar(one) : (getRelatedWordsForChar(one) || []));
+        const words = getRelatedWordsForChar(one) || [];
         if (!words.length) {
           body.innerHTML = `<div class="relw-muted">（未有建議）</div>`;
           return;
         }
-        const chips = words.slice(0, 36).map(w => {
+        const chips = words.slice(0, 18).map(w => {
           const safe = escapeHtml(String(w));
           return `<button class="relw-chip" data-relw="${safe}" title="點擊複製">${safe}</button>`;
         }).join('');
@@ -1153,330 +1109,6 @@ try {
         // ignore
       }
     }
-
-    // ---------- 在線增強（可用就用；冇網就保持離線） ----------
-    const ONLINE_EXTRA_VERSION = '20260627-online-extra-1';
-    const ONLINE_EXTRA_LS_KEY = 'hk_char_online_extra_cache_v1';
-
-    function loadOnlineExtraCache(){
-      try {
-        const raw = localStorage.getItem(ONLINE_EXTRA_LS_KEY);
-        if (!raw) return { version: ONLINE_EXTRA_VERSION, items: {} };
-        const parsed = JSON.parse(raw);
-        if (!parsed || parsed.version !== ONLINE_EXTRA_VERSION || !parsed.items) return { version: ONLINE_EXTRA_VERSION, items: {} };
-        return parsed;
-      } catch(e) {
-        return { version: ONLINE_EXTRA_VERSION, items: {} };
-      }
-    }
-
-    function saveOnlineExtraCache(cache){
-      try { localStorage.setItem(ONLINE_EXTRA_LS_KEY, JSON.stringify(cache)); } catch(e) {}
-    }
-
-    let onlineExtraCache = loadOnlineExtraCache();
-
-    function uniqList(list){
-      const out = [];
-      const seen = new Set();
-      for (const x of (list || [])) {
-        const s = String(x || '').trim();
-        if (!s) continue;
-        if (seen.has(s)) continue;
-        seen.add(s);
-        out.push(s);
-      }
-      return out;
-    }
-
-    async function fetchWithTimeout(url, options = {}, ms = 4500){
-      const ctrl = new AbortController();
-      const t = setTimeout(() => ctrl.abort(), ms);
-      try {
-        const res = await fetch(url, { ...options, signal: ctrl.signal });
-        return res;
-      } finally {
-        clearTimeout(t);
-      }
-    }
-
-    async function fetchJsonWithTimeout(url, ms = 4500){
-      const res = await fetchWithTimeout(url, { cache: 'no-store', headers: { 'Accept': 'application/json' } }, ms);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return await res.json();
-    }
-
-    async function fetchTextWithTimeout(url, ms = 5200){
-      const res = await fetchWithTimeout(url, { cache: 'no-store' }, ms);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return await res.text();
-    }
-
-    function parseZdicMarkdown(md, ch){
-      const out = { pinyin: '', words: [], variants: [], mandarinHomophones: [] };
-      const s = String(md || '');
-
-      // 拼音
-      try {
-        const m = s.match(/\n拼音\s+([^\n\r]+)\n/);
-        if (m && m[1]) out.pinyin = String(m[1]).trim();
-      } catch(e) {}
-
-      // 常用词组
-      try {
-        const i = s.indexOf('\n常用词组\n');
-        if (i >= 0) {
-          const seg = s.slice(i, i + 2200);
-          const list = [];
-          const re = /\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g;
-          let mm;
-          while ((mm = re.exec(seg))) {
-            const w = (mm[1] || '').trim();
-            if (!w) continue;
-            if (w.length > 12) continue;
-            if (ch && !w.includes(ch)) continue;
-            list.push(w);
-          }
-          out.words = uniqList(list);
-        }
-      } catch(e) {}
-
-      // 异体（近似字）
-      try {
-        const i = s.indexOf('\n异体\n');
-        if (i >= 0) {
-          const seg = s.slice(i, i + 1600);
-          const list = [];
-          // 例：](https://www.zdic.net/hans/%E4%BC%B1 "伱")
-          const re = /\"([^\"\n\r]{1,4})\"\)/g;
-          let mm;
-          while ((mm = re.exec(seg))) {
-            const v = (mm[1] || '').trim();
-            if (!v) continue;
-            if (v.length > 2) continue;
-            if (ch && v === ch) continue;
-            list.push(v);
-          }
-          out.variants = uniqList(list).slice(0, 24);
-        }
-      } catch(e) {}
-
-      // 普通話「同音字」
-      try {
-        const i = s.indexOf('\n### 同音字\n');
-        if (i >= 0) {
-          const seg = s.slice(i, i + 2200);
-          const list = [];
-          const re = /\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g;
-          let mm;
-          while ((mm = re.exec(seg))) {
-            const w = (mm[1] || '').trim();
-            if (!w) continue;
-            if (w.length > 2) continue;
-            if (ch && w === ch) continue;
-            list.push(w);
-          }
-          out.mandarinHomophones = uniqList(list).slice(0, 48);
-        }
-      } catch(e) {}
-
-      return out;
-    }
-
-    async function fetchOnlineExtrasForChar(ch){
-      const one = Array.from(String(ch||'').trim())[0];
-      if (!one) return null;
-
-      // 1) Moedict: 拼音（最穩定係 json）
-      let pinyin = '';
-      try {
-        const j = await fetchJsonWithTimeout(`https://www.moedict.tw/a/${encodeURIComponent(one)}.json`, 4200);
-        const p = j?.h?.[0]?.p;
-        if (p) pinyin = String(p).trim();
-      } catch(e) {}
-
-      // 2) Zdic: 常用词组 + 异体 + 普通話同音字
-      let zd = null;
-      try {
-        const md = await fetchTextWithTimeout(`https://r.jina.ai/https://www.zdic.net/hans/${encodeURIComponent(one)}`, 5200);
-        zd = parseZdicMarkdown(md, one);
-      } catch(e) {
-        zd = null;
-      }
-
-      const out = {
-        pinyin: pinyin || (zd?.pinyin || ''),
-        words: uniqList([...(zd?.words||[])]),
-        variants: uniqList([...(zd?.variants||[])]),
-        mandarinHomophones: uniqList([...(zd?.mandarinHomophones||[])])
-      };
-
-      return out;
-    }
-
-    function getOnlineExtrasCached(ch){
-      const one = Array.from(String(ch||'').trim())[0];
-      if (!one) return null;
-      const it = onlineExtraCache?.items?.[one];
-      return it && it.data ? it.data : null;
-    }
-
-    async function ensureOnlineExtras(ch, { force = false } = {}){
-      const one = Array.from(String(ch||'').trim())[0];
-      if (!one) return null;
-      const cached = getOnlineExtrasCached(one);
-      if (cached && !force) return cached;
-
-      // 冇網就直接唔搞（保持離線運作）
-      if (typeof navigator !== 'undefined' && navigator.onLine === false) return cached || null;
-
-      try {
-        const data = await fetchOnlineExtrasForChar(one);
-        if (data) {
-          onlineExtraCache.items[one] = { ts: Date.now(), data };
-          saveOnlineExtraCache(onlineExtraCache);
-          return data;
-        }
-      } catch(e) {}
-      return cached || null;
-    }
-
-    function getEnhancedRelatedWordsForChar(ch){
-      const one = Array.from(String(ch||'').trim())[0];
-      if (!one) return [];
-      const offline = (getRelatedWordsForChar(one) || []).filter(w => String(w).includes(one));
-      const online = (getOnlineExtrasCached(one)?.words || []).filter(w => String(w).includes(one));
-      return uniqList([ ...offline, ...online ]);
-    }
-
-    function renderCharExtraHtml(ch){
-      const c = String(ch || '').trim();
-      if (!c) return '';
-      const one = Array.from(c)[0];
-      if (typeof isChinese === 'function' && !isChinese(one)) return '';
-
-      return `
-        <div class="cex" id="charExtraWrap">
-          <div class="cex-head">
-            <div class="cex-title">📚 拼音／近似字（在線增強）</div>
-            <div class="cex-status" id="charExtraStatus">…</div>
-            <button class="cex-retry" id="charExtraSelfTest" title="自檢（睇 Console）">自檢</button>
-            <button class="cex-retry" id="charExtraRetry" title="重試在線資料">重試</button>
-          </div>
-          <div class="cex-body" id="charExtraBody">
-            <div class="cex-muted">（如有上網，會自動補充：拼音、異體字、普通話同音字）</div>
-          </div>
-        </div>
-      `;
-    }
-
-    async function refreshCharExtraDom({ force = false } = {}){
-      try {
-        const wrap = document.getElementById('charExtraWrap');
-        const body = document.getElementById('charExtraBody');
-        const st = document.getElementById('charExtraStatus');
-        const selfTest = document.getElementById('charExtraSelfTest');
-        const retry = document.getElementById('charExtraRetry');
-        if (!wrap || !body || !st) return;
-
-        const c = String(state.dictInput || '').trim();
-        if (!c) { wrap.style.display = 'none'; return; }
-        const one = Array.from(c)[0];
-        if (typeof isChinese === 'function' && !isChinese(one)) { wrap.style.display = 'none'; return; }
-        wrap.style.display = '';
-
-        // 綁一次：自檢
-        if (selfTest && !selfTest.dataset.bound) {
-          selfTest.dataset.bound = '1';
-          selfTest.addEventListener('click', async () => {
-            const samples = ['我','你','好','學','車','醫'];
-            const rows = [];
-            console.group('🧪 自檢：查單字在線增強');
-            for (const ch of samples) {
-              const d = await ensureOnlineExtras(ch, { force: true });
-              rows.push({ ch, pinyin: d?.pinyin || '', variants: (d?.variants||[]).length, mandarinHomophones: (d?.mandarinHomophones||[]).length, words: (d?.words||[]).length });
-            }
-            console.table(rows);
-            console.groupEnd();
-            alert('自檢完成：請開 Console 睇表格（🧪 自檢：查單字在線增強）');
-          });
-        }
-
-        // 綁一次：重試
-        if (retry && !retry.dataset.bound) {
-          retry.dataset.bound = '1';
-          retry.addEventListener('click', async () => {
-            st.textContent = '⏳ 重試中…';
-            st.className = 'cex-status';
-            await refreshCharExtraDom({ force: true });
-            try { await refreshRelatedWordsDom(); } catch(e) {}
-          });
-        }
-
-        // 先用 cache 快速渲染
-        const cached = getOnlineExtrasCached(one);
-        const hasNet = (typeof navigator !== 'undefined') ? (navigator.onLine !== false) : true;
-
-        if (cached) {
-          st.textContent = hasNet ? '✅ 在線（快取）' : '📴 離線（快取）';
-          st.className = 'cex-status ' + (hasNet ? 'online' : 'offline');
-        } else {
-          st.textContent = hasNet ? '⏳ 在線載入中…' : '📴 離線';
-          st.className = 'cex-status ' + (hasNet ? '' : 'offline');
-        }
-
-        const d0 = cached || { pinyin:'', variants:[], mandarinHomophones:[] };
-        const renderBody = (d) => {
-          const pinyin = String(d?.pinyin || '').trim();
-          const variants = (d?.variants || []).slice(0, 24);
-          const homo = (d?.mandarinHomophones || []).slice(0, 48);
-
-          const pinyinHtml = pinyin
-            ? `<div class="cex-row"><div class="cex-row-title">拼音</div><div class="cex-chips"><button class="cex-chip" data-copy="${escapeHtml(pinyin)}" title="點擊複製">${escapeHtml(pinyin)}</button></div></div>`
-            : `<div class="cex-row"><div class="cex-row-title">拼音</div><div class="cex-muted">（離線未提供；有網會自動補充）</div></div>`;
-
-          const vHtml = variants.length
-            ? `<div class="cex-row"><div class="cex-row-title">近似／異體字</div><div class="cex-chips">${variants.map(x=>`<button class="cex-chip" data-dict-pick="${escapeHtml(x)}" title="用呢個字再查">${escapeHtml(x)}</button>`).join('')}</div></div>`
-            : `<div class="cex-row"><div class="cex-row-title">近似／異體字</div><div class="cex-muted">（未有）</div></div>`;
-
-          const hHtml = homo.length
-            ? `<div class="cex-row"><div class="cex-row-title">普通話同音字</div><div class="cex-chips">${homo.map(x=>`<button class="cex-chip" data-dict-pick="${escapeHtml(x)}" title="用呢個字再查">${escapeHtml(x)}</button>`).join('')}</div></div>`
-            : `<div class="cex-row"><div class="cex-row-title">普通話同音字</div><div class="cex-muted">（未有）</div></div>`;
-
-          body.innerHTML = pinyinHtml + vHtml + hHtml;
-        };
-
-        renderBody(d0);
-
-        // 再嘗試線上更新
-        if (hasNet) {
-          const d = await ensureOnlineExtras(one, { force });
-          if (d) {
-            st.textContent = '✅ 在線';
-            st.className = 'cex-status online';
-            renderBody(d);
-          } else {
-            st.textContent = '📴 離線';
-            st.className = 'cex-status offline';
-          }
-        }
-
-        // 綁一次：點擊複製
-        if (wrap && !wrap.dataset.copybound) {
-          wrap.dataset.copybound = '1';
-          wrap.addEventListener('click', async (e) => {
-            const t = e.target;
-            const btn = t && t.closest ? t.closest('[data-copy]') : null;
-            if (!btn) return;
-            e.preventDefault();
-            const v = String(btn.getAttribute('data-copy') || '').trim();
-            if (!v) return;
-            await copyTextSafe(v);
-          });
-        }
-      } catch(e) {}
-    }
-
 
     async function copyTextSafe(text) {
       const t = String(text || '');
@@ -1963,8 +1595,6 @@ try {
               ${isReady ? (dictVal ? renderCodeBlocks(charData, dictVal.trim(), method, showRad) : `<div class="result-placeholder">手寫或輸入單字即時解碼</div>`) : `<div style="color:#94a3b8;">⏳ 碼表載入中，請稍後…</div>`}
             </div>
 
-            ${renderCharExtraHtml(dictVal)}
-
             ${renderRelatedWordsHtml(dictVal)}
 
             ${renderDictHistoryHtml()}
@@ -2004,9 +1634,6 @@ try {
 
         // 關聯詞語：載入 + 刷新（盡量唔影響輸入格 focus）
         refreshRelatedWordsDom();
-
-        // 在線補充：拼音 / 近似字 / 普通話同音字
-        refreshCharExtraDom();
 
         const relWrap = document.getElementById('relWordsWrap');
         if (relWrap && !relWrap.dataset.bound) {
@@ -2226,11 +1853,8 @@ try {
             try {
               jyPanel.classList.add('open');
               if (jyInput) {
-                // 方便：自動帶入（優先：目前查字欄 → 上次查字記憶 → 最近查過第一個）
-                if (!jyInput.value.trim()) {
-                  const fallback = state.dictInput || state.lastDictChar || (Array.isArray(state.dictHistory) ? state.dictHistory[0] : '');
-                  if (fallback) jyInput.value = String(fallback);
-                }
+                // 方便：自動帶入目前查字欄內容
+                if (state.dictInput && !jyInput.value.trim()) jyInput.value = state.dictInput;
                 jyInput.focus();
               }
               if (!jyutpingLoaded) {
