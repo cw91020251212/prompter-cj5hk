@@ -1393,6 +1393,16 @@ try {
     function onboardingMaybe(){
       if (state.isTyping) { if (tour.open) closeTour(); return; }
       if (tour.open) { refreshTour(); return; }
+
+      // 手機（觸控裝置）避免自動彈教學：
+      // iOS/Android 有機會因為 scrollIntoView/mask 影響輸入框 focus，造成「鍵盤閃一下就縮返」。
+      // 需要教學就用右上角「🎓 教學」手動重播。
+      const isTouch = (typeof window !== 'undefined') && (
+        ('ontouchstart' in window) ||
+        (typeof navigator !== 'undefined' && (navigator.maxTouchPoints || 0) > 0)
+      );
+      if (isTouch) return;
+
       if (state.activeTab === 'prompter' && !tourDone('prompter')) startPrompterTour();
       if (state.activeTab === 'dict' && !tourDone('dict')) startDictTour();
     }
@@ -1472,48 +1482,61 @@ try {
       return !!pickCantoneseVoice();
     }
 
-    function buildOnlineCantoTtsUrl(text) {
+    function buildOnlineCantoTtsUrl(text, { endpoint = 'googleapis' } = {}) {
       const q = encodeURIComponent(String(text || '').trim());
       const lang = (state.cantoTtsOnlineLang === 'zh-HK') ? 'zh-HK' : 'yue';
-      // 預設使用 Google Translate TTS（非官方端點）。
-      // 如你有自家雲端 TTS，可以喺呢度換成你自己嘅 API URL。
-      return `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${lang}&q=${q}`;
+      // 網上朗讀：用兩個端點輪候（非官方）。
+      // 1) translate.googleapis.com（通常較少因 referer/UA 失敗）
+      // 2) translate.google.com（備用）
+      if (endpoint === 'google') {
+        return `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${lang}&q=${q}`;
+      }
+      return `https://translate.googleapis.com/translate_tts?ie=UTF-8&client=gtx&tl=${lang}&q=${q}`;
     }
 
     async function speakCantoneseOnline(text) {
       const txt = String(text || '').trim();
       if (!txt) return;
-      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-        alert('⚠️ 而家冇網絡，未能用「網上粵語朗讀」');
-        return;
-      }
-      // 停止本機朗讀 + 舊嘅 online audio
+
+      // 注意：唔信 navigator.onLine（iOS PWA 有機會誤報 offline）。
+      // 直接嘗試播放；失敗先提示。
       stopSpeaking();
 
-      const url = buildOnlineCantoTtsUrl(txt);
-      state.cantoTtsLastOnlineUrl = url;
-
-      try {
+      const tryPlay = async (url) => {
+        state.cantoTtsLastOnlineUrl = url;
         const audio = new Audio(url);
         audio.preload = 'auto';
         state._cantoAudio = audio;
         await audio.play();
-      } catch (e) {
-        // fallback: 試另一個語碼一次
-        try {
-          const altLang = (state.cantoTtsOnlineLang === 'zh-HK') ? 'yue' : 'zh-HK';
-          const q = encodeURIComponent(txt);
-          const altUrl = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${altLang}&q=${q}`;
-          state.cantoTtsLastOnlineUrl = altUrl;
-          const audio2 = new Audio(altUrl);
-          audio2.preload = 'auto';
-          state._cantoAudio = audio2;
-          await audio2.play();
-          return;
-        } catch (e2) {}
+      };
 
-        alert('⚠️ 網上朗讀暫時用唔到（可能被服務商阻擋／地區限制／網絡問題）。\n\n你可以：\n- 轉用「只用本機」（如你部機有 zh-HK / 粵語 voice）\n- 或日後換成你自己嘅雲端 TTS API');
-      }
+      // 先試 googleapis，再試 google
+      try {
+        await tryPlay(buildOnlineCantoTtsUrl(txt, { endpoint: 'googleapis' }));
+        return;
+      } catch (e1) {}
+
+      try {
+        await tryPlay(buildOnlineCantoTtsUrl(txt, { endpoint: 'google' }));
+        return;
+      } catch (e2) {}
+
+      // 再試轉語碼一次（yue <-> zh-HK），兩個端點都試
+      try {
+        const alt = (state.cantoTtsOnlineLang === 'zh-HK') ? 'yue' : 'zh-HK';
+        state.cantoTtsOnlineLang = alt;
+        try { localStorage.setItem('cantoTtsOnlineLang_v1', state.cantoTtsOnlineLang); } catch(e) {}
+
+        try {
+          await tryPlay(buildOnlineCantoTtsUrl(txt, { endpoint: 'googleapis' }));
+          return;
+        } catch (e3) {}
+
+        await tryPlay(buildOnlineCantoTtsUrl(txt, { endpoint: 'google' }));
+        return;
+      } catch (e4) {}
+
+      alert('⚠️ 網上朗讀暫時用唔到。\n\n可能原因：\n- 你而家真係離線／網絡不穩\n- Wi‑Fi/公司網絡擋咗 Google（部分 app 會用其他服務，所以仍然有聲）\n- 服務商端點暫時封鎖\n\n建議：\n- 換一個網絡（4G/5G 試一次）\n- 或如果你有 API Key，我可以幫你接 Azure/Google Cloud TTS');
     }
 
     async function speakCantoneseChar(ch) {
