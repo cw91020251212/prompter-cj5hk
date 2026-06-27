@@ -581,6 +581,8 @@
     .canto-speak-btn{ width:44px; height:44px; border-radius: 14px; border: 1px solid #334155; background: rgba(255,255,255,0.06); color:#e2e8f0; cursor:pointer; font-size: 1.35rem; display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto; }
     .canto-speak-btn:hover{ border-color:#60a5fa; }
 
+    .build-badge{ width:100%; max-width:420px; margin: 6px auto 0; text-align:center; color:#94a3b8; font-size: 0.95rem; }
+
 	  /* ===== 首次使用教學指引（Onboarding Tour） ===== */
 	  .tour-overlay{ position:fixed; inset:0; z-index:30000; display:none; }
 	  .tour-overlay.open{ display:block; }
@@ -1696,6 +1698,7 @@ try {
             <div class="result-box" id="dictResult">
               ${isReady ? (dictVal ? renderCodeBlocks(charData, dictVal.trim(), method, showRad) : `<div class="result-placeholder">手寫或輸入單字即時解碼</div>`) : `<div style="color:#94a3b8;">⏳ 碼表載入中，請稍後…</div>`}
             </div>
+            <div class="build-badge">更新版本：2026-06-27（粵語喇叭版 v1）</div>
 
             ${renderDictHistoryHtml()}
 
