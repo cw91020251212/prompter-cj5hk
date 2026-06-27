@@ -150,7 +150,18 @@
 
     .dict-top { width: 100%; display:flex; align-items:center; justify-content:space-between; margin-bottom: 8px; }
     .dict-top button { background: rgba(255,255,255,0.06); border: 1px solid #334155; color: #e2e8f0; width: 44px; height: 44px; border-radius: 14px; font-size: 1.6rem; font-weight: 900; cursor: pointer; }
-    #dictSpeakBtn { color: #ffffff; filter: drop-shadow(0 0 1px white) brightness(1.5); }
+    #dictSpeakBtn { 
+      background: transparent !important; 
+      border: none !important; 
+      box-shadow: none !important; 
+      display: flex; 
+      align-items: center; 
+      justify-content: center;
+      padding: 0;
+    }
+    #dictSpeakBtn svg { width: 32px; height: 32px; fill: none; stroke: #ffffff; stroke-width: 32; stroke-linecap: round; stroke-linejoin: round; }
+    #dictSpeakBtn:active { opacity: 0.6; transform: scale(0.95); }
+    #dictSpeakBtn:disabled { opacity: 0.2 !important; }
     .dict-top button:active { transform: translateY(1px); }
 
     .dict-top button:disabled { opacity: 0.35; cursor: not-allowed; }
@@ -205,7 +216,12 @@
     .not-found button:hover { background: #475569; }
 
     /* ===== 查單字：自動儲存（最多 60） ===== */
-    .dict-history{ width: 100%; max-width: 420px; margin: 6px auto 0; background:#0b1220; border: 1px solid #334155; border-radius: 18px; padding: 12px; }
+    .dict-history{ width: 100%; max-width: 420px; margin: 6px auto 0; background:#0b1220; border: 1px solid #334155; border-radius: 18px; padding: 12px; overflow: hidden; }
+    .dict-history-head { cursor: pointer; user-select: none; }
+    .dict-history-title::after { content: ' ▼'; font-size: 0.7rem; transition: transform 0.2s; display: inline-block; }
+    .dict-history.open .dict-history-title::after { transform: rotate(180deg); }
+    .dict-history .dict-hlist { display: none; margin-top: 12px; }
+    .dict-history.open .dict-hlist { display: flex; }
     
     /* 粵拼查詢介面 */
     .jyutping-panel {
@@ -310,8 +326,12 @@
     .dict-history-empty{ color:#94a3b8; font-weight: 800; font-size: 1.05rem; padding: 10px 0; }
 
     /* 關聯詞語（常用） */
-    .relw{ width: 100%; max-width: 420px; margin: 10px auto 0; background:#0b1220; border: 1px solid #334155; border-radius: 18px; padding: 12px; }
-    .relw-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom: 8px; }
+    .relw{ width: 100%; max-width: 420px; margin: 10px auto 0; background:#0b1220; border: 1px solid #334155; border-radius: 18px; padding: 12px; overflow: hidden; }
+    .relw-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom: 8px; cursor: pointer; user-select: none; }
+    .relw-title::after { content: ' ▼'; font-size: 0.7rem; transition: transform 0.2s; display: inline-block; }
+    .relw.open .relw-title::after { transform: rotate(180deg); }
+    .relw .relw-body { display: none; margin-top: 12px; }
+    .relw.open .relw-body { display: flex; }
     .relw-title{ color:#93c5fd; font-weight: 950; font-size: 1.1rem; }
     .relw-muted{ color:#94a3b8; font-weight: 800; font-size: 1.05rem; padding: 6px 0; }
     .relw-chips{ display:flex; flex-wrap:wrap; gap:10px; }
@@ -320,8 +340,12 @@
     .relw-sub{ color:#94a3b8; font-weight: 750; font-size: 0.95rem; margin-top: 8px; }
 
     /* 查單字：在線補充（拼音 / 近似字 / 普通話同音字） */
-    .cex{ width: 100%; max-width: 420px; margin: 10px auto 0; background:#0b1220; border: 1px solid #334155; border-radius: 18px; padding: 12px; }
-    .cex-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom: 8px; flex-wrap: wrap; }
+    .cex{ width: 100%; max-width: 420px; margin: 10px auto 0; background:#0b1220; border: 1px solid #334155; border-radius: 18px; padding: 12px; overflow: hidden; }
+    .cex-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom: 8px; flex-wrap: wrap; cursor: pointer; user-select: none; }
+    .cex-title::after { content: ' ▼'; font-size: 0.7rem; transition: transform 0.2s; display: inline-block; }
+    .cex.open .cex-title::after { transform: rotate(180deg); }
+    .cex .cex-body { display: none; margin-top: 12px; }
+    .cex.open .cex-body { display: flex; }
     .cex-title{ color:#a7f3d0; font-weight: 950; font-size: 1.1rem; }
     .cex-status{ color:#94a3b8; font-weight: 900; font-size: 0.95rem; padding: 4px 10px; border-radius: 999px; border:1px solid #334155; background: rgba(255,255,255,0.04); }
     .cex-status.online{ color:#6ee7b7; border-color: rgba(16,185,129,0.45); background: rgba(6,95,70,0.25); }
@@ -971,7 +995,10 @@
       textIndexMap: [],
       contextWindowSize: 0,
       _typingHistoryPushed: false,
-      hintKbdOn: false
+      hintKbdOn: false,
+      relWordsOpen: false,
+      charExtraOpen: false,
+      dictHistoryOpen: false
     };
 
     try {
@@ -1035,10 +1062,10 @@ try {
         : `<div class="dict-history-empty">（未有記錄）</div>`;
 
       return `
-        <div class="dict-history" id="dictHistory">
-          <div class="dict-history-head">
+        <div class="dict-history ${state.dictHistoryOpen ? 'open' : ''}">
+          <div class="dict-history-head" onclick="state.dictHistoryOpen = !state.dictHistoryOpen; this.parentElement.classList.toggle('open')">
             <div class="dict-history-title">🕘 最近查過（最多 60）</div>
-            <button id="dictHistoryClear" class="dict-history-clear" ${count ? '' : 'disabled'}>清除</button>
+            <button id="dictHistoryClear" class="dict-history-clear" ${count ? '' : 'disabled'} onclick="event.stopPropagation()">清除</button>
           </div>
           <div class="dict-hlist">${listHtml}</div>
         </div>
@@ -1123,8 +1150,8 @@ try {
           })();
 
       return `
-        <div class="relw" id="relWordsWrap">
-          <div class="relw-head">
+        <div class="relw ${state.relWordsOpen ? 'open' : ''}" id="relWordsWrap">
+          <div class="relw-head" onclick="state.relWordsOpen = !state.relWordsOpen; this.parentElement.classList.toggle('open')">
             <div class="relw-title">🔎 關聯詞語（常用）</div>
           </div>
           <div class="relw-body" id="relWordsBody">${body}</div>
@@ -1382,12 +1409,12 @@ try {
       if (typeof isChinese === 'function' && !isChinese(one)) return '';
 
       return `
-        <div class="cex" id="charExtraWrap">
-          <div class="cex-head">
+        <div class="cex ${state.charExtraOpen ? 'open' : ''}" id="charExtraWrap">
+          <div class="cex-head" onclick="state.charExtraOpen = !state.charExtraOpen; this.parentElement.classList.toggle('open')">
             <div class="cex-title">📚 拼音／近似字（在線增強）</div>
             <div class="cex-status" id="charExtraStatus">…</div>
-            <button class="cex-retry" id="charExtraSelfTest" title="自檢（睇 Console）">自檢</button>
-            <button class="cex-retry" id="charExtraRetry" title="重試在線資料">重試</button>
+            <button class="cex-retry" id="charExtraSelfTest" title="自檢（睇 Console）" onclick="event.stopPropagation()">自檢</button>
+            <button class="cex-retry" id="charExtraRetry" title="重試在線資料" onclick="event.stopPropagation()">重試</button>
           </div>
           <div class="cex-body" id="charExtraBody">
             <div class="cex-muted">（如有上網，會自動補充：拼音、異體字、普通話同音字）</div>
@@ -1925,11 +1952,16 @@ try {
         if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) return false;
         await waitVoices(700);
         const voice = pickCantoneseVoice();
-        if (!voice) return false;
-        stopSpeaking();
+        // 如果搵唔到廣東話語音，都嘗試用預設語音播，避免完全無聲
         const u = new SpeechSynthesisUtterance(ch);
-        u.voice = voice;
-        u.lang = voice.lang || 'zh-HK';
+        if (voice) {
+          u.voice = voice;
+          u.lang = voice.lang || 'zh-HK';
+        } else {
+          u.lang = 'zh-HK';
+        }
+        stopSpeaking();
+
         u.rate = 0.9;
         u.pitch = 1.0;
         window.speechSynthesis.speak(u);
@@ -2018,7 +2050,14 @@ try {
           <div class="dict-top">
             <button id="backToPrompter" aria-label="返回">✕</button>
             <button id="replayTourBtn" style="width:auto;height:44px;padding:0 14px;font-size:1.05rem;border-radius:14px;" title="重播教學">🎓 教學</button>
-            <button id="dictSpeakBtn" aria-label="聽粵音" ${dictVal?'':'disabled'} title="🔊 聽粵音（如支援）">🔊</button>
+            <button id="dictSpeakBtn" aria-label="聽粵音" ${dictVal?'':'disabled'} title="🔊 聽粵音">
+              <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+                <!-- 喇叭主體 -->
+                <path d="M192 192h-80a16 16 0 00-16 16v96a16 16 0 0016 16h80l96 96V128l-96 96z" fill="#ffffff" stroke="none"/>
+                <!-- 聲音線條 (原本黑色，而家改白色) -->
+                <path d="M384 320c9.74-19.41 16-43.05 16-64 0-20.95-6.26-44.59-16-64M448 384c18.67-37.34 32-84.41 32-128 0-43.59-13.33-90.66-32-128" fill="none" stroke="#ffffff" stroke-width="32" stroke-linecap: round; />
+              </svg>
+            </button>
           </div>
           <div class="dict-area">
             <div id="dictInputWrap" class="dict-input-wrap ${dictVal?'has-value':''}">
@@ -2313,7 +2352,8 @@ try {
 
       // 每次 render 都更新顯示/隱藏，但事件只綁一次（避免重覆綁定）
       if (jyFab) {
-        jyFab.style.display = (state.activeTab === 'dict' && !state.isTyping) ? 'flex' : 'none';
+        const isPanelOpen = jyPanel && jyPanel.classList.contains('open');
+        jyFab.style.display = (state.activeTab === 'dict' && !state.isTyping && !isPanelOpen) ? 'flex' : 'none';
 
         // 重要修正：只要離開「查字」頁（activeTab !== 'dict'），就當作離開同音字畫面
         // 目的：避免面板殘留上次輸入，導致下次打開唔跟「主角字」做首選。
@@ -2331,6 +2371,7 @@ try {
 
               jyPanel.classList.add('open');
               if (jyBackdrop) jyBackdrop.classList.add('open');
+              if (jyFab) jyFab.style.display = 'none';
               if (jyInput) {
                 // 方案 B：每次打開都以『主角字』為預設；同時唔保留上次面板輸入
                 jyInput.value = '';
@@ -2363,6 +2404,9 @@ try {
       function resetJyPanel(){
         try { jyPanel && jyPanel.classList.remove('open'); } catch(e) {}
         if (jyBackdrop) { try { jyBackdrop.classList.remove('open'); } catch(e) {} }
+        if (jyFab && state.activeTab === 'dict' && !state.isTyping) {
+          jyFab.style.display = 'flex';
+        }
         if (jyInput) {
           try { jyInput.value = ''; } catch(e) {}
           try { jyInput.blur && jyInput.blur(); } catch(e) {}

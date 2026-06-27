@@ -35,13 +35,23 @@
     if (ch && ch.length === 1 && CANTO_PRI[ch] == null) CANTO_PRI[ch] = i + 1;
   }
 
-  // 常見繁→簡對照（借用字頻排名；覆蓋最常見一批先）
+  // 常見繁→簡對照
   const TRAD_TO_SIMPL = {
     '這':'这','個':'个','們':'们','來':'来','為':'为','後':'后','過':'过','會':'会','與':'与','還':'还','裡':'里',
     '應':'应','說':'说','時':'时','對':'对','發':'发','國':'国','學':'学','點':'点','嗎':'吗','話':'话',
     '見':'见','讓':'让','開':'开','關':'关','門':'门','書':'书','電':'电','聲':'声','體':'体',
     '愛':'爱','頭':'头','進':'进','樣':'样','誰':'谁'
   };
+  const SIMPL_TO_TRAD = Object.create(null);
+  for (const k of Object.keys(TRAD_TO_SIMPL)) SIMPL_TO_TRAD[TRAD_TO_SIMPL[k]] = k;
+
+  // 簡單判斷是否為簡體字（針對常用字）
+  function isSimplified(ch) {
+    if (SIMPL_TO_TRAD[ch]) return true;
+    // 使用簡單的 Unicode 範圍判斷或啟發式判斷，這裡主要針對用戶需求做分類
+    // 粵語應用中，通常繁體優先。
+    return false; 
+  }
 
   function isHan(str) {
     const s = String(str || '');
@@ -148,6 +158,12 @@
   function sortCharsByCommonness(list) {
     const arr = (list || []).slice();
     arr.sort((a, b) => {
+      // 新增：繁簡排序邏輯
+      // 繁體優先 (isSimplified 返回 false 的排前面)
+      const sa = isSimplified(a) ? 1 : 0;
+      const sb = isSimplified(b) ? 1 : 0;
+      if (sa !== sb) return sa - sb;
+
       const ra = commonnessRank(a);
       const rb = commonnessRank(b);
       if (ra !== rb) return ra - rb;
