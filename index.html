@@ -2311,6 +2311,9 @@ try {
           jyFab.dataset.bound = '1';
           jyFab.addEventListener('click', async () => {
             try {
+              // 先即時清空結果，避免見到上一次殘留內容（即使只係一瞬）
+              try { if (jyResults) jyResults.innerHTML = '<div class="jyutping-empty">輸入中文開始查詢</div>'; } catch(e) {}
+
               jyPanel.classList.add('open');
               if (jyBackdrop) jyBackdrop.classList.add('open');
               if (jyInput) {
@@ -2341,18 +2344,37 @@ try {
         }
       }
 
+      // 統一清空：任何方式關閉（✕ / 點背景 / ESC / 切tab）都必須清空
+      function resetJyPanel(){
+        try { jyPanel && jyPanel.classList.remove('open'); } catch(e) {}
+        if (jyBackdrop) { try { jyBackdrop.classList.remove('open'); } catch(e) {} }
+        if (jyInput) {
+          try { jyInput.value = ''; } catch(e) {}
+          try { jyInput.blur && jyInput.blur(); } catch(e) {}
+        }
+        if (jyResults) {
+          try { jyResults.innerHTML = '<div class="jyutping-empty">輸入中文開始查詢</div>'; } catch(e) {}
+        }
+      }
+
       if (jyClose && !jyClose.dataset.bound) {
         jyClose.dataset.bound = '1';
-        const closeJy = () => {
-          try { jyPanel.classList.remove('open'); } catch(e) {}
-          if (jyBackdrop) { try { jyBackdrop.classList.remove('open'); } catch(e) {} }
-          if (jyInput) {
-            jyInput.value = '';
-            try { jyInput.blur && jyInput.blur(); } catch(e) {}
-          }
-          if (jyResults) jyResults.innerHTML = '<div class="jyutping-empty">輸入中文開始查詢</div>';
-        };
+        const closeJy = () => resetJyPanel();
         jyClose.addEventListener('click', closeJy);
+
+        // 事件委派（保險）：就算 click bind 出問題，撳✕都一定會 reset
+        if (jyPanel && !jyPanel.dataset.closeDelegated) {
+          jyPanel.dataset.closeDelegated = '1';
+          jyPanel.addEventListener('click', (e)=>{
+            try {
+              const t = e.target;
+              if (t && (t.id === 'closeJyutping' || (t.closest && t.closest('#closeJyutping')))) {
+                e.preventDefault();
+                resetJyPanel();
+              }
+            } catch(err) {}
+          });
+        }
 
         if (jyBackdrop && !jyBackdrop.dataset.bound) {
           jyBackdrop.dataset.bound = '1';
