@@ -238,8 +238,16 @@
 
   // 英文粵拼 → 同音字（支援 prefix 搜尋）
   function searchByPinyin(input, { limitPerReading = 180, maxGroups = 20 } = {}) {
-    const q = normalizePinyinQuery(input);
-    if (!q || !dict) return [];
+    const raw = normalizePinyinQuery(input);
+    if (!raw || !dict) return [];
+
+    // 兼容：香港常見用 Yale / 普通話習慣輸入
+    // 例：用家輸入 ying（英），字典 key 其實係 Jyutping：jing
+    const ALIAS = {
+      ying: 'jing'
+    };
+    const q = ALIAS[raw] || raw;
+    const usedAlias = (q !== raw);
 
     const keys = Object.keys(dict.pinyin_to_chars || {});
     const matched = keys
@@ -252,8 +260,9 @@
       .slice(0, maxGroups);
 
     return matched.map(py => ({
-      sourceChar: py,
-      pinyins: [{ pinyin: py, chars: getHomophones(py, null, limitPerReading) }],
+      // 如果用咗 alias：左邊保留用家輸入（例如 ying），避免覺得「點解變咗 jing」
+      sourceChar: usedAlias ? raw : py,
+      pinyins: [{ pinyin: usedAlias ? `${py}（粵拼 / Jyutping）` : py, chars: getHomophones(py, null, limitPerReading) }],
       missing: false
     }));
   }

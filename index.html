@@ -2299,6 +2299,14 @@ try {
       // 每次 render 都更新顯示/隱藏，但事件只綁一次（避免重覆綁定）
       if (jyFab) {
         jyFab.style.display = (state.activeTab === 'dict' && !state.isTyping) ? 'flex' : 'none';
+
+        // 重要修正：只要離開「查字」頁（activeTab !== 'dict'），就當作離開同音字畫面
+        // 目的：避免面板殘留上次輸入，導致下次打開唔跟「主角字」做首選。
+        try {
+          if (state.activeTab !== 'dict' && jyPanel && jyPanel.classList.contains('open')) {
+            window.__closeJyutpingPanel && window.__closeJyutpingPanel();
+          }
+        } catch(e) {}
         if (!jyFab.dataset.bound) {
           jyFab.dataset.bound = '1';
           jyFab.addEventListener('click', async () => {
@@ -2308,7 +2316,15 @@ try {
               if (jyInput) {
                 // 方案 B：每次打開都以『主角字』為預設；同時唔保留上次面板輸入
                 jyInput.value = '';
-                const fallback = state.dictInput || state.lastDictChar || (Array.isArray(state.dictHistory) ? state.dictHistory[0] : '');
+                // 首選一定跟「查單字」上面嗰個大格（dictInput）目前顯示嘅字。
+                // 用 DOM 讀一次，避免 state/畫面唔同步時攞錯。
+                let protagonist = '';
+                try {
+                  const el = document.getElementById('dictInput');
+                  protagonist = String(el && el.value ? el.value : '').trim();
+                } catch(e) { protagonist = ''; }
+
+                const fallback = protagonist || state.dictInput || state.lastDictChar || (Array.isArray(state.dictHistory) ? state.dictHistory[0] : '');
                 if (fallback) jyInput.value = String(fallback);
                 jyInput.focus();
               }
@@ -2330,7 +2346,10 @@ try {
         const closeJy = () => {
           try { jyPanel.classList.remove('open'); } catch(e) {}
           if (jyBackdrop) { try { jyBackdrop.classList.remove('open'); } catch(e) {} }
-          if (jyInput) jyInput.value = '';
+          if (jyInput) {
+            jyInput.value = '';
+            try { jyInput.blur && jyInput.blur(); } catch(e) {}
+          }
           if (jyResults) jyResults.innerHTML = '<div class="jyutping-empty">輸入中文開始查詢</div>';
         };
         jyClose.addEventListener('click', closeJy);
@@ -2376,14 +2395,27 @@ try {
         function renderGroups(groups){
           // groups: [{sourceChar, pinyins:[{pinyin, chars:[...]}]}]
           jyResults.innerHTML = groups.map(g => {
-            const pills = (g.pinyins || []).map(p => `<span class="jyutping-py-pill">${escapeHtml(p.pinyin)}</span>`).join('');
+            function formatPinyinLabel(py){
+              // 用家常見疑問：英（Jyutping: jing1）= Yale: ying1
+              try {
+                const m = String(py||'').match(/^jing([1-6])?$/i);
+                if (m) {
+                  const t = m[1] || '';
+                  return `jing${t}（Yale: ying${t}）`;
+                }
+              } catch(e) {}
+              return String(py||'');
+            }
+
+            const pills = (g.pinyins || []).map(p => `<span class="jyutping-py-pill">${escapeHtml(formatPinyinLabel(p.pinyin))}</span>`).join('');
             const blocks = (g.pinyins || []).map(p => {
+              const pyLabel = formatPinyinLabel(p.pinyin);
               const list = (p.chars || []);
               const show = list.slice(0, 180);
               const more = list.length - show.length;
               const btns = show.map(ch => `<button class="jyutping-char-btn" data-pick="${escapeHtml(ch)}">${escapeHtml(ch)}</button>`).join('');
               return `
-                <div class="jyutping-subnote">${escapeHtml(p.pinyin)} · 同音字 ${list.length}${more>0?`（只顯示前 ${show.length}）`:''}</div>
+                <div class="jyutping-subnote">${escapeHtml(pyLabel)} · 同音字 ${list.length}${more>0?`（只顯示前 ${show.length}）`:''}</div>
                 <div class="jyutping-chars">${btns || '<span style="color:#475569;font-weight:900;">（無）</span>'}</div>
               `;
             }).join('');
