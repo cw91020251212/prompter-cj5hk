@@ -151,15 +151,10 @@
     .dict-top { width: 100%; display:flex; align-items:center; justify-content:space-between; margin-bottom: 8px; }
     .dict-top button { background: rgba(255,255,255,0.06); border: 1px solid #334155; color: #e2e8f0; width: 44px; height: 44px; border-radius: 14px; font-size: 1.6rem; font-weight: 900; cursor: pointer; }
     #dictSpeakBtn { 
-      background: transparent !important; 
-      border: none !important; 
-      box-shadow: none !important; 
-      display: flex; 
-      align-items: center; 
-      justify-content: center;
-      padding: 0;
+      background: transparent !important; border: none !important; box-shadow: none !important; 
+      display: flex; align-items: center; justify-content: center; padding: 0;
     }
-    #dictSpeakBtn svg { width: 32px; height: 32px; fill: none; stroke: #ffffff; stroke-width: 32; stroke-linecap: round; stroke-linejoin: round; }
+    #dictSpeakBtn svg { width: 32px; height: 32px; }
     #dictSpeakBtn:active { opacity: 0.6; transform: scale(0.95); }
     #dictSpeakBtn:disabled { opacity: 0.2 !important; }
     .dict-top button:active { transform: translateY(1px); }
@@ -229,12 +224,11 @@
       background: #1e293b; border-top: 2px solid #3b82f6;
       transform: translateY(100%);
       transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), bottom 0.2s ease, max-height 0.2s ease;
-      z-index: 2000; padding: 16px; border-radius: 24px 24px 0 0;
+      z-index: 2000; padding: 0; border-radius: 24px 24px 0 0;
       box-shadow: 0 -10px 25px rgba(0,0,0,0.5);
-      max-height: 85vh; 
-      /* 使用動態高度以確保頂部唔會超出螢幕 */
       max-height: calc(100dvh - 20px);
       display: flex; flex-direction: column;
+      overflow: hidden;
     }
     .jyutping-panel.open { transform: translateY(0); }
 
@@ -253,14 +247,13 @@
     }
     body.softkbd-open .jyutping-fab { bottom: calc(92px + var(--softkbd-height)); }
     .jyutping-header { 
-      display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; 
-      background: #1e293b; position: sticky; top: -16px; z-index: 10; padding-top: 4px;
+      display: flex; justify-content: space-between; align-items: center; 
+      background: #1e293b; z-index: 10; padding: 16px 16px 8px; flex-shrink: 0;
     }
     .jyutping-title { font-weight: 950; color: #60a5fa; font-size: 1.6rem; letter-spacing: 0.02em; }
     .jyutping-close { background: none; border: none; color: #94a3b8; font-size: 2.1rem; cursor: pointer; padding: 6px 10px; }
     .jyutping-input-wrap { 
-      position: sticky; top: 40px; z-index: 10; 
-      background: #1e293b; margin-bottom: 12px; padding-bottom: 4px;
+      z-index: 10; background: #1e293b; padding: 0 16px 8px; flex-shrink: 0;
     }
     .jyutping-input {
       width: 100%; background: #0f172a; border: 2px solid #334155; border-radius: 14px;
@@ -270,7 +263,7 @@
     .jyutping-input:focus { border-color: #3b82f6; }
 
     /* 粵語同音字（NEW v20260626） */
-    .jyutping-actions{ display:flex; gap:8px; margin: 0 0 12px; }
+    .jyutping-actions{ display:flex; gap:8px; padding: 0 16px 12px; background: #1e293b; flex-shrink: 0; }
     .jyutping-actions button{ flex:1; padding:14px 14px; border-radius: 14px; border:1px solid #334155; background: rgba(255,255,255,0.06); color:#e2e8f0; font-weight: 950; cursor:pointer; font-size: 1.15rem; }
     .jyutping-actions button.primary{ background:#2563eb; border-color:#3b82f6; box-shadow: 0 4px 0 #1e3a8a; }
     .jyutping-actions button.primary:active{ transform: translateY(3px); box-shadow: 0 1px 0 #1e3a8a; }
@@ -281,8 +274,8 @@
     .jyutping-py-pill{ font-size: 1.05rem; font-weight: 900; color:#93c5fd; border:1px solid rgba(59,130,246,0.55); background: rgba(30,58,138,0.25); padding: 6px 10px; border-radius: 999px; }
     .jyutping-subnote{ color:#94a3b8; font-size:1.05rem; font-weight:850; margin: 8px 0 6px; }
     .jyutping-empty{ color:#94a3b8; font-weight:900; text-align:center; padding: 18px 0 10px; font-size: 1.15rem; }
-    .jyutping-footnote{ color:#94a3b8; font-size:1.05rem; font-weight:850; text-align:center; padding: 10px 0 0; }
-    .jyutping-results { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding-bottom: 20px; }
+    .jyutping-footnote{ color:#94a3b8; font-size:1.05rem; font-weight:850; text-align:center; padding: 10px 16px 16px; flex-shrink: 0; background: #1e293b; }
+    .jyutping-results { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding: 0 16px 20px; -webkit-overflow-scrolling: touch; }
     .jyutping-item { background: #0b1220; padding: 16px; border-radius: 16px; border: 1px solid #334155; }
     .jyutping-label { color: #94a3b8; font-size: 0.85rem; margin-bottom: 6px; font-weight: 700; }
     .jyutping-chars { display: grid; grid-template-columns: repeat(auto-fit, minmax(78px, 1fr)); gap: 10px; }
@@ -1918,12 +1911,31 @@ try {
       try {
         const voices = window.speechSynthesis ? window.speechSynthesis.getVoices() : [];
         if (!voices || !voices.length) return null;
-        const prefer = (v)=>{
-          const lang = String(v.lang||'').toLowerCase();
-          const name = String(v.name||'').toLowerCase();
-          return (lang === 'zh-hk') || lang.startsWith('zh-hk') || lang.startsWith('yue') || name.includes('cantonese') || name.includes('粵');
-        };
-        return voices.find(prefer) || null;
+        
+        // 優先級排序：zh-HK > yue > name包含廣東話/粵語
+        const sorted = voices.slice().sort((a, b) => {
+          const la = String(a.lang||'').toLowerCase();
+          const lb = String(b.lang||'').toLowerCase();
+          const na = String(a.name||'').toLowerCase();
+          const nb = String(b.name||'').toLowerCase();
+          
+          const score = (l, n) => {
+            if (l === 'zh-hk') return 100;
+            if (l.startsWith('zh-hk')) return 90;
+            if (l.startsWith('yue')) return 80;
+            if (n.includes('cantonese') || n.includes('粵')) return 70;
+            if (l.startsWith('zh')) return 10;
+            return 0;
+          };
+          return score(lb, nb) - score(la, na);
+        });
+
+        const best = sorted[0];
+        const bestLang = String(best.lang||'').toLowerCase();
+        if (bestLang.startsWith('zh') || bestLang.startsWith('yue') || String(best.name).includes('粵')) {
+          return best;
+        }
+        return null;
       } catch(e){ return null; }
     }
 
@@ -2052,10 +2064,9 @@ try {
             <button id="replayTourBtn" style="width:auto;height:44px;padding:0 14px;font-size:1.05rem;border-radius:14px;" title="重播教學">🎓 教學</button>
             <button id="dictSpeakBtn" aria-label="聽粵音" ${dictVal?'':'disabled'} title="🔊 聽粵音">
               <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-                <!-- 喇叭主體 -->
-                <path d="M192 192h-80a16 16 0 00-16 16v96a16 16 0 0016 16h80l96 96V128l-96 96z" fill="#ffffff" stroke="none"/>
-                <!-- 聲音線條 (原本黑色，而家改白色) -->
-                <path d="M384 320c9.74-19.41 16-43.05 16-64 0-20.95-6.26-44.59-16-64M448 384c18.67-37.34 32-84.41 32-128 0-43.59-13.33-90.66-32-128" fill="none" stroke="#ffffff" stroke-width="32" stroke-linecap: round; />
+                <path d="M192 192h-80a16 16 0 00-16 16v96a16 16 0 0016 16h80l96 96V128l-96 96z" fill="#ffffff"/>
+                <path d="M384 320c9.74-19.41 16-43.05 16-64 0-20.95-6.26-44.59-16-64" fill="none" stroke="#ffffff" stroke-width="32" stroke-linecap="round"/>
+                <path d="M448 384c18.67-37.34 32-84.41 32-128 0-43.59-13.33-90.66-32-128" fill="none" stroke="#ffffff" stroke-width="32" stroke-linecap="round"/>
               </svg>
             </button>
           </div>
@@ -2349,6 +2360,22 @@ try {
       const jyClear = document.getElementById('jyutpingClearBtn');
       const jyRegionBtn = document.getElementById('jyutpingRegionBtn');
       const jySelfTestBtn = document.getElementById('jyutpingSelfTestBtn');
+
+      if (jyRegionBtn && !jyRegionBtn.dataset.bound) {
+        jyRegionBtn.dataset.bound = '1';
+        jyRegionBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          const current = (window.__homophoneRegion || 'hk');
+          const next = current === 'hk' ? 'cn' : 'hk';
+          window.__homophoneRegion = next;
+          jyRegionBtn.textContent = `地區: ${next === 'hk' ? '香港' : '大陸'}`;
+          try {
+            if (typeof window.__performJyHomophoneSearch === 'function') {
+              window.__performJyHomophoneSearch();
+            }
+          } catch(err) {}
+        });
+      }
 
       // 每次 render 都更新顯示/隱藏，但事件只綁一次（避免重覆綁定）
       if (jyFab) {
