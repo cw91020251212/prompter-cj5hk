@@ -285,6 +285,16 @@
     .dict-hlist{ display:flex; flex-wrap:wrap; gap: 10px; }
     .dict-history-empty{ color:#94a3b8; font-weight: 800; font-size: 1.05rem; padding: 10px 0; }
 
+    /* 關聯詞語（常用） */
+    .relw{ width: 100%; max-width: 420px; margin: 10px auto 0; background:#0b1220; border: 1px solid #334155; border-radius: 18px; padding: 12px; }
+    .relw-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom: 8px; }
+    .relw-title{ color:#93c5fd; font-weight: 950; font-size: 1.1rem; }
+    .relw-muted{ color:#94a3b8; font-weight: 800; font-size: 1.05rem; padding: 6px 0; }
+    .relw-chips{ display:flex; flex-wrap:wrap; gap:10px; }
+    .relw-chip{ border:1px solid rgba(59,130,246,0.55); background: rgba(30,58,138,0.25); color:#e2e8f0; font-weight: 900; font-size: 1.05rem; padding: 10px 12px; border-radius: 999px; cursor:pointer; }
+    .relw-chip:hover{ border-color:#60a5fa; background: rgba(96,165,250,0.14); }
+    .relw-sub{ color:#94a3b8; font-weight: 750; font-size: 0.95rem; margin-top: 8px; }
+
     .dict-hitem{ display:inline-flex; align-items:stretch; border-radius: 999px; overflow:hidden; border: 1px solid #334155; background: rgba(255,255,255,0.04); }
     .dict-hpick{ appearance:none; border:0; background: transparent; color:#f8fafc; font-weight: 650; padding: 12px 16px; cursor:pointer; min-width: 56px; font-size: 1.6rem; line-height: 1.1; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
     .dict-hpick:hover{ background: rgba(96,165,250,0.14); }
@@ -573,16 +583,6 @@
     .tts-rate select{ background:#0b1220; color:#e2e8f0; border:1px solid #334155; border-radius:12px; padding:10px 14px; font-weight:800; font-size: 1.15rem; max-width: 240px; }
     .tts-hint{ font-size:1rem; color:#94a3b8; font-weight:700; margin-top:12px;}
 
-    /* ===== 粵語讀音（喇叭仔）===== */
-    .canto-line{ width:100%; max-width:420px; margin: 6px auto 8px; display:flex; align-items:center; justify-content:center; gap:10px; padding: 10px 12px; border-radius: 16px; background: rgba(15,23,42,0.85); border: 1px solid #334155; }
-    .canto-label{ color:#93c5fd; font-weight:800; font-size: 1.05rem; }
-    .canto-jyut{ color:#e2e8f0; font-weight:800; font-size: 1.15rem; letter-spacing: 0.3px; }
-    .canto-muted{ color:#94a3b8; font-weight:750; font-size: 1.05rem; }
-    .canto-speak-btn{ width:44px; height:44px; border-radius: 14px; border: 1px solid #334155; background: rgba(255,255,255,0.06); color:#e2e8f0; cursor:pointer; font-size: 1.35rem; display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto; }
-    .canto-speak-btn:hover{ border-color:#60a5fa; }
-
-    .build-badge{ width:100%; max-width:420px; margin: 6px auto 0; text-align:center; color:#94a3b8; font-size: 0.95rem; }
-
 	  /* ===== 首次使用教學指引（Onboarding Tour） ===== */
 	  .tour-overlay{ position:fixed; inset:0; z-index:30000; display:none; }
 	  .tour-overlay.open{ display:block; }
@@ -800,23 +800,12 @@
       dictStatus = 'loading';
       render();
 
-      async function fetchJsonWithTimeout(url, ms) {
-        const controller = new AbortController();
-        const t = setTimeout(() => controller.abort(), ms);
-        try {
-          const resp = await fetch(url, { cache: 'no-cache', mode: 'cors', signal: controller.signal });
-          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-          return await resp.json();
-        } finally {
-          clearTimeout(t);
-        }
-      }
-
       for (let i = 0; i < SOURCES.length; i++) {
         try {
           const url = SOURCES[i];
-          const data = await fetchJsonWithTimeout(url, 12000);
-
+          const resp = await fetch(url, { cache: 'no-cache', mode: 'cors' });
+          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+          const data = await resp.json();
           let dict = {};
           if (Array.isArray(data)) {
             data.forEach(item => { if (item.length>=2) dict[item[0]] = item[1]; });
@@ -939,16 +928,6 @@
       textArrayRaw: [],
       textIndexMap: [],
       contextWindowSize: 0,
-      ttsMuted: true,
-      ttsRate: 1.0,
-      ttsRepeat: 1,
-      ttsSettingsOpen: false,
-      ttsVoiceURI: '',
-      ttsLastSpokenKey: '',
-      cantoTtsMode: 'online', // 固定：只用網上朗讀
-      cantoTtsOnlineLang: 'yue', // yue | zh-HK
-      cantoTtsLastOnlineUrl: '',
-      _cantoAudio: null,
       _typingHistoryPushed: false,
       hintKbdOn: false
     };
@@ -1013,35 +992,145 @@ try {
       `;
     }
 
+    // ---------- 關聯詞語（常用詞）----------
+    const REL_WORDS_URL = './src/char_related_words.json';
+    const REL_WORDS_VERSION = '20260627-rel-1';
+    const REL_LS_KEY = 'hk_char_related_words_cache_v1';
+    let relWords = null;
+    let relWordsLoaded = false;
+    let relWordsLoading = null;
+
+    function loadRelatedWordsFromLocalStorage() {
+      try {
+        const raw = localStorage.getItem(REL_LS_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!parsed || parsed.version !== REL_WORDS_VERSION || !parsed.data) return null;
+        return parsed.data;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function saveRelatedWordsToLocalStorage(data) {
+      try { localStorage.setItem(REL_LS_KEY, JSON.stringify({ version: REL_WORDS_VERSION, data })); } catch (e) {}
+    }
+
+    async function loadRelatedWordsIndex() {
+      if (relWordsLoaded && relWords) return relWords;
+      if (relWordsLoading) return relWordsLoading;
+
+      relWordsLoading = (async () => {
+        const cached = loadRelatedWordsFromLocalStorage();
+        if (cached) {
+          relWords = cached;
+          relWordsLoaded = true;
+          return relWords;
+        }
+        const res = await fetch(REL_WORDS_URL, { cache: 'no-store' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        relWords = data || null;
+        relWordsLoaded = !!relWords;
+        if (relWords) saveRelatedWordsToLocalStorage(relWords);
+        return relWords;
+      })();
+
+      try {
+        return await relWordsLoading;
+      } finally {
+        // keep relWordsLoading for de-dupe
+      }
+    }
+
+    function getRelatedWordsForChar(ch) {
+      const c = String(ch || '').trim();
+      if (!c || !relWordsLoaded || !relWords) return null;
+      const one = Array.from(c)[0];
+      return relWords[one] || [];
+    }
+
+    function renderRelatedWordsHtml(ch) {
+      const c = String(ch || '').trim();
+      if (!c) return '';
+      const one = Array.from(c)[0];
+      if (typeof isChinese === 'function' && !isChinese(one)) return '';
+
+      // 外框永遠 render 出嚟，方便 load 完再更新內容（唔一定要 render()）
+      const body = (!relWordsLoaded)
+        ? `<div class="relw-muted">（正在載入常用詞庫…）</div>`
+        : (() => {
+            const words = getRelatedWordsForChar(one) || [];
+            if (!words.length) return `<div class="relw-muted">（未有建議）</div>`;
+            const chips = words.slice(0, 18).map(w => {
+              const safe = escapeHtml(String(w));
+              return `<button class="relw-chip" data-relw="${safe}" title="點擊複製">${safe}</button>`;
+            }).join('');
+            return `<div class="relw-chips">${chips}</div><div class="relw-sub">（點一下可複製）</div>`;
+          })();
+
+      return `
+        <div class="relw" id="relWordsWrap">
+          <div class="relw-head">
+            <div class="relw-title">🔎 關聯詞語（常用）</div>
+          </div>
+          <div class="relw-body" id="relWordsBody">${body}</div>
+        </div>
+      `;
+    }
+
+    async function refreshRelatedWordsDom() {
+      try {
+        const wrap = document.getElementById('relWordsWrap');
+        const body = document.getElementById('relWordsBody');
+        if (!wrap || !body) return;
+        const c = String(state.dictInput || '').trim();
+        if (!c) { wrap.style.display = 'none'; return; }
+        const one = Array.from(c)[0];
+        if (typeof isChinese === 'function' && !isChinese(one)) { wrap.style.display = 'none'; return; }
+        wrap.style.display = '';
+
+        if (!relWordsLoaded) {
+          body.innerHTML = `<div class="relw-muted">（正在載入常用詞庫…）</div>`;
+          await loadRelatedWordsIndex();
+        }
+
+        const words = getRelatedWordsForChar(one) || [];
+        if (!words.length) {
+          body.innerHTML = `<div class="relw-muted">（未有建議）</div>`;
+          return;
+        }
+        const chips = words.slice(0, 18).map(w => {
+          const safe = escapeHtml(String(w));
+          return `<button class="relw-chip" data-relw="${safe}" title="點擊複製">${safe}</button>`;
+        }).join('');
+        body.innerHTML = `<div class="relw-chips">${chips}</div><div class="relw-sub">（點一下可複製）</div>`;
+      } catch(e) {
+        // ignore
+      }
+    }
+
+    async function copyTextSafe(text) {
+      const t = String(text || '');
+      if (!t) return false;
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(t);
+          return true;
+        }
+      } catch(e) {}
+      // fallback：prompt 俾用家長按複製
+      try { window.prompt('已選取文字（長按複製）：', t); } catch(e) {}
+      return false;
+    }
+
     // 每次進入「查單字」都回復預設（清空輸入＋結果）
     function resetDictOnEnter(){
       state.dictInput = '';
-      state.ttsSettingsOpen = false;
-      state.ttsLastSpokenKey = '';
-      stopSpeaking();
       // 注意：曾查記錄要保留，所以唔清 dictHistory/localStorage
     }
 
-(function initTtsMuted() {
-      try {
-        const v = localStorage.getItem('ttsMuted_v1');
-        if (v === null) {
-          state.ttsMuted = true;
-          localStorage.setItem('ttsMuted_v1', '1');
-        } else {
-          state.ttsMuted = (v === '1');
-        }
-      } catch(e) {}
-    })();
-
-    (function initCantoTtsSettings() {
-      // 簡化：固定只用「網上朗讀」；冇網就提示。
-      try { state.cantoTtsMode = 'online'; } catch(e) {}
-      try {
-        const lang = localStorage.getItem('cantoTtsOnlineLang_v1');
-        if (lang === 'yue' || lang === 'zh-HK') state.cantoTtsOnlineLang = lang;
-      } catch(e) {}
-    })();
+    // （已移除發聲功能）
 
     (function initFirstLaunch() {
       try {
@@ -1393,345 +1482,21 @@ try {
     function onboardingMaybe(){
       if (state.isTyping) { if (tour.open) closeTour(); return; }
       if (tour.open) { refreshTour(); return; }
-
-      // 手機（觸控裝置）避免自動彈教學：
-      // iOS/Android 有機會因為 scrollIntoView/mask 影響輸入框 focus，造成「鍵盤閃一下就縮返」。
-      // 需要教學就用右上角「🎓 教學」手動重播。
-      const isTouch = (typeof window !== 'undefined') && (
-        ('ontouchstart' in window) ||
-        (typeof navigator !== 'undefined' && (navigator.maxTouchPoints || 0) > 0)
-      );
-      if (isTouch) return;
-
       if (state.activeTab === 'prompter' && !tourDone('prompter')) startPrompterTour();
       if (state.activeTab === 'dict' && !tourDone('dict')) startDictTour();
     }
 
-    function ttsSupported() {
-      return (typeof window !== 'undefined' && 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window);
-    }
-    function normalizeLettersForSpeech(letters) { return letters.join(' '); }
-    function extractEnglishLettersFromCharData(charData, method) {
-      if (!charData) return [];
-      let arr = method === 'quick' ? (charData.q || []) : (charData.cj || []);
-      return arr.map(s => String(s).trim()).filter(s => /^[A-Za-z]$/.test(s)).map(s => s.toUpperCase());
-    }
-    function getVoicesSafe() {
-      if (!ttsSupported()) return [];
-      try { return window.speechSynthesis.getVoices() || []; } catch(e) { return []; }
-    }
-    function pickVoice() {
-      const voices = getVoicesSafe();
-      if (!voices.length) return null;
-      if (state.ttsVoiceURI) {
-        const v = voices.find(v => v.voiceURI === state.ttsVoiceURI);
-        if (v) return v;
-      }
-      return voices.find(v => /^en(-|_)/i.test(v.lang)) || voices[0];
-    }
-    function speakLetters(letters) {
-      if (!ttsSupported()) { alert('⚠️ 呢部裝置/瀏覽器未支援英文發音'); return; }
-      if (!letters || letters.length === 0) return;
-      const repeat = Math.max(1, Math.min(2, Number(state.ttsRepeat) || 1));
-      const rate = Math.max(0.5, Math.min(1.5, Number(state.ttsRate) || 1.0));
-      const voice = pickVoice();
-      try { window.speechSynthesis.cancel(); } catch(e) {}
-      let i = 0;
-      const speakOnce = () => {
-        const utter = new SpeechSynthesisUtterance(normalizeLettersForSpeech(letters));
-        utter.lang = 'en-US'; utter.rate = rate;
-        if (voice) utter.voice = voice;
-        utter.onend = () => {
-          i++;
-          if (i < repeat) setTimeout(speakOnce, 120);
-        };
-        window.speechSynthesis.speak(utter);
-      };
-      speakOnce();
-    }
-    function stopSpeaking() {
-      // stop both local speechSynthesis and any online-audio fallback
-      try { if (typeof window !== 'undefined' && window.speechSynthesis) window.speechSynthesis.cancel(); } catch(e) {}
-      try {
-        if (state && state._cantoAudio) {
-          state._cantoAudio.pause();
-          state._cantoAudio.currentTime = 0;
-        }
-      } catch(e) {}
-      try { if (state) state._cantoAudio = null; } catch(e) {}
-    }
-
-    // ===== 粵語發音（讀出中文字） =====
-    function pickCantoneseVoice() {
-      const voices = getVoicesSafe();
-      if (!voices.length) return null;
-
-      // 優先：zh-HK / yue（粵語）
-      const preferred = voices.find(v => /^zh(-|_)HK/i.test(v.lang))
-        || voices.find(v => /^yue/i.test(v.lang))
-        || voices.find(v => /cantonese/i.test(String(v.name || '')))
-        || voices.find(v => /zh.*HK/i.test(String(v.lang || '')));
-
-      return preferred || null;
-    }
-
-    function canSpeakCantonese() {
-      if (!ttsSupported()) return false;
-      // 某些裝置即使 getVoices() 未即時返，都會遲少少先 ready。
-      // 但為免讀成普通話，我哋以「真係搵到粵語/香港中文 voice」先當支援。
-      return !!pickCantoneseVoice();
-    }
-
-    function buildOnlineCantoTtsUrl(text, { endpoint = 'googleapis' } = {}) {
-      const q = encodeURIComponent(String(text || '').trim());
-      const lang = (state.cantoTtsOnlineLang === 'zh-HK') ? 'zh-HK' : 'yue';
-      // 網上朗讀：用兩個端點輪候（非官方）。
-      // 1) translate.googleapis.com（通常較少因 referer/UA 失敗）
-      // 2) translate.google.com（備用）
-      if (endpoint === 'google') {
-        return `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${lang}&q=${q}`;
-      }
-      return `https://translate.googleapis.com/translate_tts?ie=UTF-8&client=gtx&tl=${lang}&q=${q}`;
-    }
-
-    async function speakCantoneseOnline(text) {
-      const txt = String(text || '').trim();
-      if (!txt) return;
-
-      // 注意：唔信 navigator.onLine（iOS PWA 有機會誤報 offline）。
-      // 直接嘗試播放；失敗先提示。
-      stopSpeaking();
-
-      const tryPlay = async (url) => {
-        state.cantoTtsLastOnlineUrl = url;
-        const audio = new Audio(url);
-        audio.preload = 'auto';
-        state._cantoAudio = audio;
-        await audio.play();
-      };
-
-      // 先試 googleapis，再試 google
-      try {
-        await tryPlay(buildOnlineCantoTtsUrl(txt, { endpoint: 'googleapis' }));
-        return;
-      } catch (e1) {}
-
-      try {
-        await tryPlay(buildOnlineCantoTtsUrl(txt, { endpoint: 'google' }));
-        return;
-      } catch (e2) {}
-
-      // 再試轉語碼一次（yue <-> zh-HK），兩個端點都試
-      try {
-        const alt = (state.cantoTtsOnlineLang === 'zh-HK') ? 'yue' : 'zh-HK';
-        state.cantoTtsOnlineLang = alt;
-        try { localStorage.setItem('cantoTtsOnlineLang_v1', state.cantoTtsOnlineLang); } catch(e) {}
-
-        try {
-          await tryPlay(buildOnlineCantoTtsUrl(txt, { endpoint: 'googleapis' }));
-          return;
-        } catch (e3) {}
-
-        await tryPlay(buildOnlineCantoTtsUrl(txt, { endpoint: 'google' }));
-        return;
-      } catch (e4) {}
-
-      const last = state.cantoTtsLastOnlineUrl ? `\n\n最後嘗試網址：\n${state.cantoTtsLastOnlineUrl}` : '';
-      alert('⚠️ 網上朗讀暫時用唔到。\n\n可能原因：\n- 你而家真係離線／網絡不穩\n- Wi‑Fi/公司網絡擋咗 Google（部分 app 會用其他服務，所以仍然有聲）\n- 服務商端點暫時封鎖' + last + '\n\n建議：\n- 換一個網絡（4G/5G 試一次）\n- 或如果你有 API Key，我可以幫你接 Azure/Google Cloud TTS');
-    }
-
-    async function speakCantoneseChar(ch) {
-      // 簡化：固定只用網上朗讀
-      const txt = String(ch || '').trim();
-      if (!txt) return;
-      await speakCantoneseOnline(txt);
-    }
-
-    function getJyutpingsSyncForChar(ch) {
-      const c = String(ch || '').trim();
-      if (!c || !isChinese(c)) return [];
-      if (!jyutpingLoaded || !window.HKHomophones || !window.HKHomophones.search) return [];
-      try {
-        const groups = window.HKHomophones.search(c, { limitPerReading: 0 });
-        const g0 = groups && groups[0];
-        const pys = (g0 && g0.pinyins) ? g0.pinyins.map(x => x.pinyin).filter(Boolean) : [];
-        // 去重
-        return Array.from(new Set(pys));
-      } catch(e) {
-        return [];
-      }
-    }
-
-    function renderCantoPronounceHtml(ch) {
-      const c = String(ch || '').trim();
-      if (!c) return '';
-      if (!isChinese(c)) return '';
-
-      if (!jyutpingLoaded) {
-        return `
-          <div class="canto-line" id="cantoLine">
-            <button class="canto-speak-btn" id="cantoSpeakBtn" title="讀出粵語發音">🔊</button>
-            <span class="canto-label">粵拼：</span>
-            <span class="canto-muted">載入中…</span>
-          </div>
-        `;
-      }
-
-      const pys = getJyutpingsSyncForChar(c);
-      const pyText = pys.length ? pys.join(' / ') : '';
-
-      return `
-        <div class="canto-line" id="cantoLine">
-          <button class="canto-speak-btn" id="cantoSpeakBtn" title="讀出粵語發音">🔊</button>
-          <span class="canto-label">粵拼：</span>
-          ${pyText ? `<span class="canto-jyut">${escapeHtml(pyText)}</span>` : `<span class="canto-muted">（未有粵拼）</span>`}
-        </div>
-      `;
-    }
-
-    function renderTtsBarHtml(lettersKey) {
-      const rateLabel = `x${Number(state.ttsRate).toFixed(1)}`;
-      const disabledHint = (!ttsSupported()) ? `<div class="tts-hint">（此瀏覽器未支援發音）</div>` : `<div class="tts-hint">（只限倉頡碼＋字母A-Z）</div>`;
-      const repeatVal = Math.max(1, Math.min(2, Number(state.ttsRepeat) || 1));
-      return `
-        <div class="tts-float-panel ${state.ttsSettingsOpen?'open':''}" data-tts-panel="1" data-letters-key="${escapeHtml(lettersKey)}">
-          <div class="tts-settings-head">
-            <div class="tts-settings-title">⚙ 發音設定</div>
-            <button class="tts-settings-close" id="ttsSettingsClose" title="關閉">✕</button>
-          </div>
-          <div class="tts-rate">
-            <span>語速</span>
-            <input id="ttsRate" type="range" min="0.5" max="1.5" step="0.1" value="${escapeHtml(String(state.ttsRate))}">
-            <span id="ttsRateLabel">${escapeHtml(rateLabel)}</span>
-          </div>
-          <div class="tts-rate">
-            <span>次數</span>
-            <select id="ttsRepeat">
-              <option value="1" ${repeatVal===1?'selected':''}>1次</option>
-              <option value="2" ${repeatVal===2?'selected':''}>2次</option>
-            </select>
-          </div>
-          <div class="tts-rate">
-            <span>人聲</span>
-            <select id="ttsVoice"><option value="">（預設）</option></select>
-          </div>
-          <div class="tts-rate">
-            <span>粵語朗讀</span>
-            <span style="font-weight:900;color:#e2e8f0;">只用網上（需上網）</span>
-          </div>
-          <div class="tts-rate">
-            <span>網上語系</span>
-            <select id="cantoTtsOnlineLang">
-              <option value="yue" ${state.cantoTtsOnlineLang==='yue'?'selected':''}>yue（粵語）</option>
-              <option value="zh-HK" ${state.cantoTtsOnlineLang==='zh-HK'?'selected':''}>zh-HK（香港中文）</option>
-            </select>
-          </div>
-          ${disabledHint}
-          <div class="tts-hint">（粵語朗讀固定用網上：冇上網就會提示）</div>
-        </div>
-      `;
-    }
-
-    function bindTtsBarEvents(getLettersFn) {
-      const rate = document.getElementById('ttsRate');
-      const rateLabel = document.getElementById('ttsRateLabel');
-      const repeatSel = document.getElementById('ttsRepeat');
-      const voiceSel = document.getElementById('ttsVoice');
-      const cantoLangSel = document.getElementById('cantoTtsOnlineLang');
-      const closeBtn = document.getElementById('ttsSettingsClose');
-
-      const populateVoices = () => {
-        if (!voiceSel || !ttsSupported()) return;
-        const voices = getVoicesSafe();
-        if (!voices.length) return;
-        const cur = state.ttsVoiceURI || '';
-        const options = [];
-        const en = voices.filter(v => /^en(-|_)/i.test(v.lang));
-        const other = voices.filter(v => !/^en(-|_)/i.test(v.lang));
-        const ordered = [...en, ...other];
-        ordered.forEach(v => {
-          const label = `${v.name} (${v.lang})`;
-          options.push(`<option value="${escapeHtml(v.voiceURI)}" ${v.voiceURI===cur?'selected':''}>${escapeHtml(label)}</option>`);
-        });
-        voiceSel.innerHTML = `<option value="">（預設）</option>` + options.join('');
-      };
-
-      if (rate) {
-        rate.addEventListener('input', () => {
-          state.ttsRate = Number(rate.value) || 1.0;
-          if (rateLabel) rateLabel.textContent = `x${state.ttsRate.toFixed(1)}`;
-        });
-      }
-      if (repeatSel) {
-        repeatSel.addEventListener('change', () => { state.ttsRepeat = Number(repeatSel.value) || 1; });
-      }
-      if (voiceSel) {
-        populateVoices();
-        try { window.speechSynthesis.onvoiceschanged = populateVoices; } catch(e) {}
-        voiceSel.addEventListener('change', () => { state.ttsVoiceURI = String(voiceSel.value || ''); });
-      }
-      if (cantoLangSel) {
-        cantoLangSel.addEventListener('change', () => {
-          const v = String(cantoLangSel.value || 'yue');
-          state.cantoTtsOnlineLang = (v === 'zh-HK') ? 'zh-HK' : 'yue';
-          try { localStorage.setItem('cantoTtsOnlineLang_v1', state.cantoTtsOnlineLang); } catch(e) {}
-        });
-      }
-      document.addEventListener('click', (e) => {
-        const panel = document.querySelector('.tts-float-panel');
-        if (!panel || !panel.classList.contains('open')) return;
-        const t = e.target;
-        const tag = (t && t.tagName) ? String(t.tagName).toUpperCase() : '';
-        // 重要：避免因為關閉設定面板而 render()，導致輸入框失焦、鍵盤縮返落去
-        if (t && (
-          t.closest('.tts-float-panel') ||
-          t.closest('.tts-floatbar') ||
-          t.closest('#dictInputWrap') ||
-          t.closest('#jyutpingPanel') ||
-          tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT'
-        )) return;
-        state.ttsSettingsOpen = false;
-        render();
-      }, { passive: true });
-      if (closeBtn) {
-        closeBtn.addEventListener('click', (e) => {
-          e.preventDefault();
-          state.ttsSettingsOpen = false;
-          render();
-        });
-      }
-    }
+    // ===== 發聲／朗讀功能已移除（2026-06-27） =====
+    // 為咗避免手機/PWA 因音訊/重畫面造成輸入問題，已完全移除。
+    function stopSpeaking() { /* no-op */ }
 
     function getStatusBanner() {
-      // 如果用 file:// 直接打開，部分瀏覽器會限制 fetch/音訊等功能。
-      // 為免測試時長期擋住畫面：
-      // - 只喺 file:// 先顯示
-      // - 可以按 ✕ 關閉
-      // - 關閉後會記入 localStorage（同一部機唔會再彈）
-      let fileProtoHint = '';
-      try {
-        const dismissed = (localStorage.getItem('hideFileProtoHint_v1') === '1');
-        if (location.protocol === 'file:' && !dismissed) {
-          fileProtoHint = `
-            <div class="status-banner" id="fileProtoHint" style="background:#1f2937;border-color:#334155;display:flex;gap:10px;align-items:flex-start;">
-              <div style="flex:1;">
-                ⚠️ 你而家係用 <b>file://</b> 直接開。
-                <br>部分功能（同音字資料載入、網上朗讀、下載完整碼表）可能會被瀏覽器封鎖。
-                <br>建議用 <b>http://localhost</b> 方式開（例如：
-                <span style="font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;">python -m http.server 5173</span>）。
-              </div>
-              <button id="dismissFileProtoHint" title="唔再顯示" style="width:34px;height:34px;border-radius:10px;border:1px solid #334155;background:rgba(255,255,255,0.06);color:#e2e8f0;font-weight:900;cursor:pointer;">✕</button>
-            </div>
-          `;
-        }
-      } catch(e) {}
-
       if (dictStatus === 'ready') {
-        return fileProtoHint;
+        return ``;
       } else if (dictStatus === 'embedded') {
-        return fileProtoHint;
+        return ``;
       } else if (dictStatus === 'loading') {
-        return fileProtoHint + `<div class="status-banner">⏳ 正在下載完整倉頡碼表…（最多等 10-15 秒，之後會自動用內置碼表）</div>`;
+        return `<div class="status-banner">⏳ 正在下載完整倉頡碼表…</div>`;
       } else if (dictStatus === 'error') {
         return `<div class="status-banner error">
           ❌ 自動下載失敗，請手動上傳碼表（JSON）<span style="font-weight:600;opacity:.9">（如果你係用 file:// 直接開檔，建議用 http server 開啟）</span>
@@ -1812,7 +1577,6 @@ try {
                 <div class="dict-caret"></div>
               </div>
             </div>
-            ${renderCantoPronounceHtml(dictVal)}
             <div class="toggle-bar" style="max-width:380px;margin:0 auto 10px;">
               <button id="dictBtnQuick" class="${method==='quick'?'active':''}">
                 <span class="btn-title">速成</span>
@@ -1831,6 +1595,7 @@ try {
               ${isReady ? (dictVal ? renderCodeBlocks(charData, dictVal.trim(), method, showRad) : `<div class="result-placeholder">手寫或輸入單字即時解碼</div>`) : `<div style="color:#94a3b8;">⏳ 碼表載入中，請稍後…</div>`}
             </div>
 
+            ${renderRelatedWordsHtml(dictVal)}
 
             ${renderDictHistoryHtml()}
 
@@ -1866,43 +1631,23 @@ try {
       if (active === 'dict') {
         // 確保粵拼字典已載入
         loadJyutpingDict();
-        const cdNow = (dictVal ? getCharCodes(dictVal.trim()) : null);
-        const lettersNow = (!showRad && dictVal && method === 'cangjie') ? extractEnglishLettersFromCharData(cdNow, 'cangjie') : [];
 
-        const cbtn = document.getElementById('cantoSpeakBtn');
-        if (cbtn) {
-          cbtn.addEventListener('click', () => {
-            const ch = (state.dictInput || '').trim();
-            if (!ch) return;
-            speakCantoneseChar(Array.from(ch)[0]);
-          });
-        }
+        // 關聯詞語：載入 + 刷新（盡量唔影響輸入格 focus）
+        refreshRelatedWordsDom();
 
-        const sbtn = document.getElementById('ttsSpeakerBtn');
-        if (sbtn) {
-          sbtn.addEventListener('click', () => {
-            state.ttsMuted = !state.ttsMuted;
-            try { localStorage.setItem('ttsMuted_v1', state.ttsMuted ? '1' : '0'); } catch(e) {}
-            if (state.ttsMuted) stopSpeaking();
-            render();
+        const relWrap = document.getElementById('relWordsWrap');
+        if (relWrap && !relWrap.dataset.bound) {
+          relWrap.dataset.bound = '1';
+          relWrap.addEventListener('click', async (e) => {
+            const t = e.target;
+            const btn = t && t.closest ? t.closest('[data-relw]') : null;
+            if (!btn) return;
+            e.preventDefault();
+            const w = String(btn.getAttribute('data-relw') || '').trim();
+            if (!w) return;
+            await copyTextSafe(w);
           });
         }
-        const gbtn = document.getElementById('ttsGearBtn');
-        if (gbtn) {
-          gbtn.addEventListener('click', () => {
-            state.ttsSettingsOpen = !state.ttsSettingsOpen;
-            render();
-          });
-        }
-        if (document.getElementById('ttsRate')) {
-          bindTtsBarEvents(() => extractEnglishLettersFromCharData(state.dictInput ? getCharCodes(state.dictInput.trim()) : null, state.inputMethod));
-        }
-        const key = `dict:${dictVal || ''}:${method}:${lettersNow.join('')}`;
-        if (!state.ttsMuted && lettersNow.length > 0 && key !== state.ttsLastSpokenKey) {
-          state.ttsLastSpokenKey = key;
-          speakLetters(lettersNow);
-        }
-        if (showRad || method !== 'cangjie' || !dictVal) stopSpeaking();
       }
 
       document.querySelectorAll('[data-tab]').forEach(btn => {
@@ -1921,8 +1666,6 @@ try {
       const backBtn = document.getElementById('backToPrompter');
       if (backBtn) backBtn.addEventListener('click', () => {
         state.activeTab = 'prompter';
-        state.ttsSettingsOpen = false;
-        stopSpeaking();
         render();
       });
       
@@ -1964,27 +1707,6 @@ try {
       if (retryBtn) {
         retryBtn.addEventListener('click', () => {
           fetchDictWithRetry();
-        });
-      }
-
-      // 關閉 file:// 提示（唔再顯示）
-      const dismissHint = document.getElementById('dismissFileProtoHint');
-      if (dismissHint && !dismissHint.dataset.bound) {
-        dismissHint.dataset.bound = '1';
-        dismissHint.addEventListener('click', (e) => {
-          e.preventDefault();
-          try { localStorage.setItem('hideFileProtoHint_v1', '1'); } catch(err) {}
-          try { document.getElementById('fileProtoHint')?.remove(); } catch(err) {}
-        });
-      }
-
-      // 兼容：status banner 入面嘅手動上傳 input（id=fileUpload）
-      const fileUpload = document.getElementById('fileUpload');
-      if (fileUpload && !fileUpload.dataset.bound) {
-        fileUpload.dataset.bound = '1';
-        fileUpload.addEventListener('change', (e) => {
-          const f = e.target && e.target.files ? e.target.files[0] : null;
-          if (f) loadDictFromFile(f);
         });
       }
 
@@ -2089,28 +1811,7 @@ try {
           }
           render();
         });
-        dictInput.addEventListener('focus', (e) => {
-          try { state._dictFocusAt = Date.now(); } catch(err) {}
-          e.target.select();
-        });
-        // iOS/PWA 有時會因為畫面重畫/載入資源導致輸入框瞬間失焦（鍵盤閃一下就縮）。
-        // 下面係保護：如果係「瞬間失焦」，自動再 focus 一次。
-        dictInput.addEventListener('blur', (e) => {
-          try {
-            const t = Date.now();
-            const dt = t - (state._dictFocusAt || 0);
-            if (dt > 0 && dt < 400) {
-              setTimeout(() => {
-                const el = document.getElementById('dictInput');
-                if (!el) return;
-                // 如果用家已經轉去撳同音字面板，唔好搶 focus
-                const ae = document.activeElement;
-                if (ae && (ae.id === 'jyutpingInput' || ae.closest && ae.closest('#jyutpingPanel'))) return;
-                try { el.focus(); } catch(err) {}
-              }, 60);
-            }
-          } catch(err) {}
-        });
+        dictInput.addEventListener('focus', (e) => e.target.select());
         dictInput.addEventListener('click', () => {
           if (!state.dictInput) return;
           state.dictInput = ''; render();
@@ -2570,20 +2271,8 @@ try {
       const hintLetters = (charData ? (method === 'quick' ? (charData.q || []) : (charData.cj || [])) : []);
       const hintKbdHtml = renderHintKeyboardHtml(hintLetters, method === 'quick', showRad);
 
+      // （已移除發聲功能）
       let ttsBarHtml = '';
-      if (!showRad && charData && method === 'cangjie') {
-        const letters = extractEnglishLettersFromCharData(charData, method);
-        if (letters.length > 0) {
-          const speakerIcon = state.ttsMuted ? '🔇' : '🔊';
-          ttsBarHtml = `
-            <div class="tts-floatbar">
-              <button id="ttsSpeakerBtn" title="有聲 / 靜音">${speakerIcon}</button>
-              <button id="ttsGearBtn" title="設定">⚙</button>
-            </div>
-            ${renderTtsBarHtml('typing')}
-          `;
-        }
-      }
 
       let dialogHtml = '';
       if (state.showSaveDialog) {
@@ -2652,37 +2341,12 @@ try {
         });
       }
 
-      if (ttsBarHtml) {
-        const sbtn = document.getElementById('ttsSpeakerBtn');
-        if (sbtn) {
-          sbtn.addEventListener('click', () => {
-            state.ttsMuted = !state.ttsMuted;
-            try { localStorage.setItem('ttsMuted_v1', state.ttsMuted ? '1' : '0'); } catch(e) {}
-            if (state.ttsMuted) stopSpeaking();
-            render();
-          });
-        }
-        const gbtn = document.getElementById('ttsGearBtn');
-        if (gbtn) {
-          gbtn.addEventListener('click', () => {
-            state.ttsSettingsOpen = !state.ttsSettingsOpen;
-            render();
-          });
-        }
-        bindTtsBarEvents(() => extractEnglishLettersFromCharData(getCharCodes(arr[state.currentIndex] || ''), state.inputMethod));
-
-        const lettersNow = extractEnglishLettersFromCharData(charData, method);
-        const key = `typing:${idx}:${method}:${lettersNow.join('')}`;
-        if (!state.ttsMuted && lettersNow.length > 0 && key !== state.ttsLastSpokenKey) {
-          state.ttsLastSpokenKey = key;
-          speakLetters(lettersNow);
-        }
-      }
+      // （已移除發聲功能：唔再綁定 tts 相關事件）
 
       function handleTypingOverlayTap(e) {
         if (state.showSaveDialog) return;
         const t = e.target;
-        if (t && (t.closest('button') || t.closest('.toggle-group') || t.closest('.toggle-bar') || t.closest('.qchip') || t.closest('.tts-float-panel') || t.tagName === 'INPUT' || t.tagName === 'SELECT')) return;
+        if (t && (t.closest('button') || t.closest('.toggle-group') || t.closest('.toggle-bar') || t.closest('.qchip') || t.tagName === 'INPUT' || t.tagName === 'SELECT')) return;
         const vw = (window.innerWidth || document.documentElement.clientWidth || 0);
         const x = (typeof e.clientX === 'number') ? e.clientX : (vw / 2);
         if (vw && x < vw / 2) goPrev(); else goNext();
@@ -2784,11 +2448,8 @@ try {
         const url = `https://www.chinesecj.com/cjdict/?chsearch=${encodeURIComponent(charStr)}`;
         return `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;"><span style="color:#64748b;font-size:1.8rem;margin-bottom:8px;">📚</span><p style="color:#f87171;font-weight:700;">字庫未包含此字</p><button onclick="window.open('${url}','_blank','noopener,noreferrer')" style="margin-top:12px;padding:8px 20px;background:#334155;border:1px solid #475569;border-radius:10px;color:white;font-weight:700;cursor:pointer;">🌐 前往線上字典</button></div>`;
       }
+      // （已移除發聲功能）
       let tts = '';
-      if (!showRad && method === 'cangjie') {
-        const speakerIcon = state.ttsMuted ? '🔇' : '🔊';
-        tts = `<div class="tts-floatbar"><button id="ttsSpeakerBtn" title="有聲 / 靜音">${speakerIcon}</button><button id="ttsGearBtn" title="設定">⚙</button></div>${renderTtsBarHtml('dict')}`;
-      }
       let blocks = [];
       if (method === 'quick') {
         const q = (charData.isPunct ? charData.cj : charData.q);
@@ -2899,14 +2560,6 @@ try {
       if (window.HKHomophones && window.HKHomophones.load) {
         jyutpingData = await window.HKHomophones.load();
         jyutpingLoaded = true;
-        try {
-          if (typeof render === 'function' && state && state.activeTab === 'dict') {
-            // 避免載入同音字資料時重畫畫面令「查單字輸入格」失焦（手機會鍵盤閃一下就縮）
-            const ae = document.activeElement;
-            const dictFocused = (ae && ae.id === 'dictInput');
-            if (!dictFocused) setTimeout(render, 0);
-          }
-        } catch(e) {}
         return jyutpingData;
       }
       // 如果 script 未 ready，等一等（最多 ~2 秒）
@@ -2916,13 +2569,6 @@ try {
         if (window.HKHomophones && window.HKHomophones.load) {
           jyutpingData = await window.HKHomophones.load();
           jyutpingLoaded = true;
-          try {
-            if (typeof render === 'function' && state && state.activeTab === 'dict') {
-              const ae = document.activeElement;
-              const dictFocused = (ae && ae.id === 'dictInput');
-              if (!dictFocused) setTimeout(render, 0);
-            }
-          } catch(e) {}
           return jyutpingData;
         }
       }

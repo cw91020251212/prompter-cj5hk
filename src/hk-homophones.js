@@ -23,10 +23,10 @@
   let freqRank = null;
   let loadingPromise = null;
 
-  // —— 粵語口語常用字（補強：因一般「普通話字頻表」未必包晒）——
-  // 註：呢度只係「排序用」嘅優先清單；唔會影響你查到嘅字。
+  // —— 粵語口語常用字（補強：一般普通話字頻表未必包晒）——
+  // 註：呢度只係排序用嘅優先清單；唔會影響你查到嘅字。
   const CANTO_COMMON_CHARS = [
-    '我','你','佢','唔','喺','咩','嘅','哋','啲','咗','嗰','呢','咁','冇','嚟','係','就','都','仲','同','得','好','啦','呀','喎','嘢','點','做','未','會','要','無','有','去','返','入','出','睇','聽','講','食','飲','諗','想','知','唔','係','咪','咗','緊','喇','囉','啫','噉','咗','啱','過','再','先','嗱','喂','哎','喂'
+    '我','你','佢','唔','喺','咩','嘅','哋','啲','咗','嗰','呢','咁','冇','嚟','係','就','都','仲','同','得','好','啦','呀','喎','嘢','點','做','未','會','要','無','有','去','返','入','出','睇','聽','講','食','飲','諗','想','知','咪','緊','喇','囉','啫','啱','過','再','先','喂'
   ];
   const CANTO_PRI = Object.create(null);
   for (let i = 0; i < CANTO_COMMON_CHARS.length; i++) {
@@ -34,12 +34,12 @@
     if (ch && ch.length === 1 && CANTO_PRI[ch] == null) CANTO_PRI[ch] = i + 1;
   }
 
-  // 常見繁→簡對照（用嚟借用字頻排名；覆蓋最常見一批先）
+  // 常見繁→簡對照（借用字頻排名；覆蓋最常見一批先）
   const TRAD_TO_SIMPL = {
-    '這':'这','個':'个','們':'们','來':'来','為':'为','後':'后','過':'过','會':'会','與':'与','還':'还','裡':'里','裡':'里',
-    '應':'应','說':'说','時':'时','對':'对','發':'发','國':'国','學':'学','點':'点','嗎':'吗','嗎':'吗','話':'话',
-    '見':'见','讓':'让','開':'开','關':'关','關':'关','門':'门','書':'书','電':'电','聲':'声','體':'体',
-    '愛':'爱','頭':'头','進':'进','這':'这','樣':'样','嗎':'吗','誰':'谁','嗎':'吗'
+    '這':'这','個':'个','們':'们','來':'来','為':'为','後':'后','過':'过','會':'会','與':'与','還':'还','裡':'里',
+    '應':'应','說':'说','時':'时','對':'对','發':'发','國':'国','學':'学','點':'点','嗎':'吗','話':'话',
+    '見':'见','讓':'让','開':'开','關':'关','門':'门','書':'书','電':'电','聲':'声','體':'体',
+    '愛':'爱','頭':'头','進':'进','樣':'样','誰':'谁'
   };
 
   function isHan(str) {
@@ -150,7 +150,6 @@
       const ra = commonnessRank(a);
       const rb = commonnessRank(b);
       if (ra !== rb) return ra - rb;
-      // 同分：穩定排序
       try { return a.localeCompare(b, 'zh-HK'); } catch (e) { return String(a).localeCompare(String(b)); }
     });
     return arr;
@@ -226,7 +225,6 @@
       raw.push(ch);
     }
 
-    // 按常用度排序（常用字排前）
     const ordered = sortCharsByCommonness(raw);
     return ordered.slice(0, Math.max(0, limit || 0));
   }
@@ -239,7 +237,6 @@
   }
 
   // 英文粵拼 → 同音字（支援 prefix 搜尋）
-  // 回傳同樣用 groups 結構，方便 UI 直接 render
   function searchByPinyin(input, { limitPerReading = 180, maxGroups = 20 } = {}) {
     const q = normalizePinyinQuery(input);
     if (!q || !dict) return [];
@@ -248,7 +245,6 @@
     const matched = keys
       .filter(k => k === q || k.startsWith(q))
       .sort((a, b) => {
-        // exact match first, then shorter key first
         if (a === q && b !== q) return -1;
         if (b === q && a !== q) return 1;
         return a.length - b.length || a.localeCompare(b);
@@ -263,7 +259,6 @@
   }
 
   // 主要查詢：中文（可多字）→ 每個字分組列出讀音 + 同音字
-  // 回傳：[{ sourceChar, pinyins:[{ pinyin, chars:[] }, ...], missing:boolean }]
   function search(input, { limitPerReading = 180 } = {}) {
     const val = String(input || '').trim();
     if (!val || !dict) return [];
@@ -287,12 +282,9 @@
     return groups;
   }
 
-  // 導出
   window.HKHomophones = {
     load,
-    // 中文→中文（同音字）
     search,
-    // 粵拼→中文（同音字）
     searchByPinyin,
     isHan,
     _debug: () => ({ dictLoaded: !!dict, dict, freqLoaded: !!freqRank, freqRank })
