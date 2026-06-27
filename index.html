@@ -1657,7 +1657,15 @@ try {
         const panel = document.querySelector('.tts-float-panel');
         if (!panel || !panel.classList.contains('open')) return;
         const t = e.target;
-        if (t && (t.closest('.tts-float-panel') || t.closest('.tts-floatbar'))) return;
+        const tag = (t && t.tagName) ? String(t.tagName).toUpperCase() : '';
+        // 重要：避免因為關閉設定面板而 render()，導致輸入框失焦、鍵盤縮返落去
+        if (t && (
+          t.closest('.tts-float-panel') ||
+          t.closest('.tts-floatbar') ||
+          t.closest('#dictInputWrap') ||
+          t.closest('#jyutpingPanel') ||
+          tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT'
+        )) return;
         state.ttsSettingsOpen = false;
         render();
       }, { passive: true });
