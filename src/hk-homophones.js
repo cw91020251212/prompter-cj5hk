@@ -155,6 +155,28 @@
     return 1e9;
   }
 
+
+  // 輸出排序規則：若有繁體對應字，先顯示繁體，再顯示簡體
+  // 目的：用戶閱讀習慣（繁體優先），同時保留簡體候選。
+  function preferTraditionalFirst(list) {
+    const out = [];
+    const seen = new Set();
+    for (const ch of (list || [])) {
+      if (!ch) continue;
+      const s = String(ch);
+      const trad = SIMPL_TO_TRAD[s];
+      if (trad && !seen.has(trad)) {
+        out.push(trad);
+        seen.add(trad);
+      }
+      if (!seen.has(s)) {
+        out.push(s);
+        seen.add(s);
+      }
+    }
+    return out;
+  }
+
   function sortCharsByCommonness(list) {
     const arr = (list || []).slice();
     arr.sort((a, b) => {
@@ -242,7 +264,8 @@
       raw.push(ch);
     }
 
-    const ordered = sortCharsByCommonness(raw);
+    let ordered = sortCharsByCommonness(raw);
+    ordered = preferTraditionalFirst(ordered);
     return ordered.slice(0, Math.max(0, limit || 0));
   }
 

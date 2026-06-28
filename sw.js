@@ -1,5 +1,5 @@
 // Patch 20260628-patch3：升級 cache 名，強制 PWA 拿新版 index/src
-const CACHE_NAME = 'cangjie-v22-githubfix';
+const CACHE_NAME = 'cangjie-v23-tradfirst';
 const ASSETS = [
   './',
   './index.html',
