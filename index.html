@@ -2909,8 +2909,19 @@ try {
       const hintLetters = (charData ? (method === 'quick' ? (charData.q || []) : (charData.cj || [])) : []);
       const hintKbdHtml = renderHintKeyboardHtml(hintLetters, method === 'quick', showRad);
 
-      // （已移除發聲功能）
-      let ttsBarHtml = '';
+      // ===== 提詞機：粵語發聲（手動） =====
+      // 參考「查單字」同款喇叭：撳掣讀出目前字（Cantonese/zh-HK 優先）
+      let ttsBarHtml = `
+        <div class="tts-floatbar" aria-label="粵語發聲">
+          <button id="prompterSpeakBtn" aria-label="聽粵音" ${char ? '' : 'disabled'} title="🔊 聽粵音">
+            <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+              <path d="M192 192h-80a16 16 0 00-16 16v96a16 16 0 0016 16h80l96 96V128l-96 96z" fill="#ffffff"/>
+              <path d="M384 320c9.74-19.41 16-43.05 16-64 0-20.95-6.26-44.59-16-64" fill="none" stroke="#ffffff" stroke-width="32" stroke-linecap="round"/>
+              <path d="M448 384c18.67-37.34 32-84.41 32-128 0-43.59-13.33-90.66-32-128" fill="none" stroke="#ffffff" stroke-width="32" stroke-linecap="round"/>
+            </svg>
+          </button>
+        </div>
+      `;
 
       let dialogHtml = '';
       if (state.showSaveDialog) {
@@ -2979,7 +2990,16 @@ try {
         });
       }
 
-      // （已移除發聲功能：唔再綁定 tts 相關事件）
+      // 提詞機：喇叭讀出目前字（粵語優先）
+      const pSpeak = document.getElementById('prompterSpeakBtn');
+      if (pSpeak) {
+        pSpeak.addEventListener('click', async (e) => {
+          e.preventDefault(); e.stopPropagation();
+          const ch = String((state.textArray || [])[state.currentIndex] || '').trim();
+          if (!ch) return;
+          await speakCantoneseChar(ch);
+        });
+      }
 
       function handleTypingOverlayTap(e) {
         if (state.showSaveDialog) return;

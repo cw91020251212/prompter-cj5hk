@@ -1,5 +1,5 @@
 {
-  "name": "cangjie-onboarding",
+  "name": "cangjie-github-pages-fix",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -7,8 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview",
-    "test:homophone": "node scripts/test-homophone.mjs"
+    "preview": "vite preview"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
