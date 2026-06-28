@@ -994,6 +994,10 @@
       dictHistoryOpen: false
     };
 
+    // 重要：render() 產生嘅 HTML 仍有 inline onclick（摺疊面板）
+    // inline handler 只睇到 window.*，所以要將 state 掛到全域。
+    window.state = state;
+
     try {
       const drafts = JSON.parse(localStorage.getItem('savedDrafts')) || [];
       state.savedDrafts = drafts;
@@ -2361,21 +2365,7 @@ try {
       const jyRegionBtn = document.getElementById('jyutpingRegionBtn');
       const jySelfTestBtn = document.getElementById('jyutpingSelfTestBtn');
 
-      if (jyRegionBtn && !jyRegionBtn.dataset.bound) {
-        jyRegionBtn.dataset.bound = '1';
-        jyRegionBtn.addEventListener('click', (e) => {
-          e.preventDefault();
-          const current = (window.__homophoneRegion || 'hk');
-          const next = current === 'hk' ? 'cn' : 'hk';
-          window.__homophoneRegion = next;
-          jyRegionBtn.textContent = `地區: ${next === 'hk' ? '香港' : '大陸'}`;
-          try {
-            if (typeof window.__performJyHomophoneSearch === 'function') {
-              window.__performJyHomophoneSearch();
-            }
-          } catch(err) {}
-        });
-      }
+      // 地區切換：使用 HKHomophones.setRegion / getRegion（見下方綁定）
 
       // 每次 render 都更新顯示/隱藏，但事件只綁一次（避免重覆綁定）
       if (jyFab) {
