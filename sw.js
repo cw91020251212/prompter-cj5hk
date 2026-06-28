@@ -1,13 +1,9 @@
 // Patch 20260628-patch3：升級 cache 名，強制 PWA 拿新版 index/src
-const CACHE_NAME = 'cangjie-v21-patch3';
+const CACHE_NAME = 'cangjie-v22-githubfix';
 const ASSETS = [
   './',
   './index.html',
-  './src/hk-homophones.js',
-  './src/jyutping_dict.json',
-  './src/char_freq_rank.json',
-  './src/char_related_words.json',
-  './assets/icons/favicon.ico'
+  './sw.js'
 ];
 
 self.addEventListener('install', (e) => {
