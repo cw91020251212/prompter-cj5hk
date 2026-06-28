@@ -75,6 +75,134 @@
     .app.mode-dict .tabs button { padding: 12px 0; font-size: calc(1.1rem * var(--ui-scale)); }
     .app.mode-dict .content { padding: 12px 16px 16px; }
     .app.mode-dict .dict-area { gap: 12px; }
+
+    /* ===== 查單字：墨綠主題（只影響查單字頁面） =====
+       作用範圍：只在 activeTab===dict 時加上的 class 生效：
+       - body.mode-dict-page（用於 fixed 元件：右下角🔍、同音字面板）
+       - .app.mode-dict（用於查單字頁面本體）
+       其他頁面不受影響。
+    */
+
+    /* 從你提供的 dict_B_墨綠 參考圖抽取並微調：#0b2a27 / #071a18 / #1848d8 */
+    body.mode-dict-page{
+      --dict-bg: #0b2a27;
+      --dict-bg2: #071a18;
+      --dict-surface: rgba(0, 24, 24, 0.72);
+      --dict-surface2: rgba(0, 16, 16, 0.82);
+      --dict-border: rgba(160, 220, 210, 0.22);
+      --dict-border-strong: rgba(160, 220, 210, 0.36);
+      --dict-text: #eafff8;
+      --dict-muted: rgba(195, 241, 230, 0.62);
+      --dict-accent: #1848d8;
+      --dict-accent-soft: rgba(24, 72, 216, 0.16);
+      --dict-teal: #2dd4bf;
+      --dict-teal-soft: rgba(45, 212, 191, 0.18);
+    }
+
+    .app.mode-dict{
+      background: linear-gradient(180deg, var(--dict-bg) 0%, var(--dict-bg2) 100%);
+      color: var(--dict-text);
+    }
+
+    .app.mode-dict .content{ background: transparent; }
+
+    /* 頂部按鈕列（✕ / 教學 / 喇叭） */
+    .app.mode-dict .dict-top button{
+      background: rgba(0, 24, 24, 0.50);
+      border: 1px solid var(--dict-border);
+      color: var(--dict-text);
+      box-shadow: 0 6px 16px rgba(0,0,0,0.20);
+    }
+    .app.mode-dict .dict-top button:hover{ border-color: var(--dict-border-strong); }
+
+    /* 輸入大字框 */
+    .app.mode-dict .dict-input{
+      background: var(--dict-surface2);
+      border-color: var(--dict-border-strong);
+      color: var(--dict-text);
+      box-shadow: 0 18px 40px rgba(0,0,0,0.22);
+    }
+    .app.mode-dict .dict-input:focus{
+      border-color: rgba(45, 212, 191, 0.55);
+      box-shadow: 0 0 0 4px rgba(45, 212, 191, 0.18), 0 18px 40px rgba(0,0,0,0.22);
+    }
+    .app.mode-dict .dict-input-wrap .dict-pen{ color: var(--dict-muted); }
+    .app.mode-dict .dict-input-wrap .dict-pen .dict-caret{ background: var(--dict-muted); }
+
+    /* 速成／倉頡切換 */
+    .app.mode-dict .toggle-bar button{
+      background: rgba(0, 24, 24, 0.45);
+      border-color: var(--dict-border);
+      color: var(--dict-muted);
+      box-shadow: 0 10px 26px rgba(0,0,0,0.18);
+    }
+    .app.mode-dict .toggle-bar button:hover{ border-color: rgba(45, 212, 191, 0.45); color: var(--dict-text); }
+    .app.mode-dict .toggle-bar button.active{
+      background: rgba(0, 24, 24, 0.70);
+      border-color: rgba(45, 212, 191, 0.55);
+      color: var(--dict-text);
+    }
+    .app.mode-dict .toggle-bar button .status-badge.zh{ background: #0f766e; }
+    .app.mode-dict .toggle-bar button .status-badge.en{ background: var(--dict-accent); }
+
+    /* 結果盒 */
+    .app.mode-dict .result-box,
+    .app.mode-dict .dict-history,
+    .app.mode-dict .relw,
+    body.mode-dict-page .jyutping-item{
+      background: var(--dict-surface2);
+      border-color: var(--dict-border);
+    }
+    .app.mode-dict .result-placeholder{ color: rgba(195, 241, 230, 0.45); }
+
+    /* 倉頡碼方塊（參考圖的藍色大鍵） */
+    .app.mode-dict .code-block{
+      border-color: rgba(224, 255, 248, 0.35);
+      box-shadow: 0 8px 0 rgba(0,0,0,0.28), inset 0 0 0 2px rgba(255,255,255,0.10);
+    }
+    .app.mode-dict .code-block.cj{
+      background: var(--dict-accent);
+      border-color: rgba(224, 255, 248, 0.55);
+    }
+    .app.mode-dict .code-block.arrow{ color: rgba(195, 241, 230, 0.45); }
+
+    /* 歷史 chips */
+    .app.mode-dict .dict-history-title{ color: rgba(195, 241, 230, 0.70); }
+    .app.mode-dict .dict-history-clear{
+      background: rgba(0, 24, 24, 0.45);
+      border-color: var(--dict-border);
+      color: var(--dict-text);
+    }
+    .app.mode-dict .dict-history-clear:hover{ border-color: rgba(45, 212, 191, 0.45); }
+    .app.mode-dict .dict-hitem{ border-color: var(--dict-border); background: rgba(0, 24, 24, 0.40); }
+    .app.mode-dict .dict-hpick:hover{ background: var(--dict-accent-soft); }
+
+    /* 同音字面板與浮動按鈕 */
+    body.mode-dict-page .jyutping-panel,
+    body.mode-dict-page .jyutping-header,
+    body.mode-dict-page .jyutping-input-wrap,
+    body.mode-dict-page .jyutping-actions,
+    body.mode-dict-page .jyutping-footnote{
+      background: rgba(0, 24, 24, 0.82);
+    }
+    body.mode-dict-page .jyutping-panel{ border-top-color: rgba(45, 212, 191, 0.45); }
+    body.mode-dict-page .jyutping-title{ color: rgba(195, 241, 230, 0.82); }
+    body.mode-dict-page .jyutping-input{ background: rgba(0, 16, 16, 0.82); border-color: var(--dict-border); }
+    body.mode-dict-page .jyutping-input:focus{ border-color: rgba(45, 212, 191, 0.55); }
+    body.mode-dict-page .jyutping-actions button.primary{ background: var(--dict-accent); border-color: rgba(224,255,248,0.22); box-shadow: 0 4px 0 rgba(0,0,0,0.30); }
+    body.mode-dict-page .jyutping-fab{ background: var(--dict-accent); }
+
+    /* 查單字載入提示（碼表下載 / 錯誤提示） */
+    .app.mode-dict .status-banner{
+      background: rgba(0, 24, 24, 0.70);
+      color: rgba(195, 241, 230, 0.85);
+      border-bottom-color: var(--dict-border);
+    }
+
+    /* 關聯詞語區塊（常用） */
+    .app.mode-dict .relw-title{ color: rgba(195, 241, 230, 0.85); }
+    .app.mode-dict .relw-muted{ color: rgba(195, 241, 230, 0.62); }
+
     
     .prompter-area textarea {
       width: 100%; height: min(40vh, 340px); background: #0f172a; border: 2px solid #475569; border-radius: 18px; padding: 18px;
@@ -2221,6 +2349,10 @@ try {
       }
       html += `</div></div>`;
       root.innerHTML = html;
+
+      // 只在「查單字」頁面期間，為 body 加一個狀態 class
+      // 用途：讓固定定位（fixed）的元件（如右下角 🔍、同音字面板）都可以只在查單字時套用墨綠主題
+      document.body.classList.toggle('mode-dict-page', active === 'dict');
 
       // 初次進入提詞機：先計算可顯示字數，再做「只顯示完整字」+ 平均分佈
       state.contextWindowSize = 0;
