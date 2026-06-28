@@ -291,6 +291,8 @@
     .result-box {
       width: 100%; background: #0b1220; border: 2px solid #334155; border-radius: 24px; padding: 24px 12px; min-height: 150px; display: flex; flex-direction: column; align-items: center; justify-content: center; margin-top: 8px;
     }
+    /* 查單字：未輸入時先收起解碼區，避免用家迷惑 */
+    .app.mode-dict .result-box.is-hidden{ display:none !important; }
     .result-placeholder { color: #475569; font-weight: 800; font-size: calc(1.15rem * var(--ui-scale)); }
     .code-blocks { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; width: 100%; }
 
@@ -420,10 +422,18 @@
     /* 懸浮按鈕 */
     .jyutping-fab {
       position: fixed; right: 20px; bottom: 92px;
-      width: 64px; height: 64px; background: #2563eb; color: white;
-      border-radius: 50%; display: flex; items-center: center; justify-content: center;
-      box-shadow: 0 6px 16px rgba(0,0,0,0.45); cursor: pointer; z-index: 1500;
-      font-size: 1.9rem; border: none; font-weight: 950;
+      width: 74px; height: 74px;
+      background: radial-gradient(circle at 32% 28%, #5f8dff 0%, #2f63ff 38%, #1848d8 72%, #1238a9 100%);
+      color: #ffffff; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 10px 22px rgba(0,0,0,0.42), inset 0 2px 10px rgba(255,255,255,0.18), inset 0 -8px 14px rgba(0,0,0,0.18);
+      cursor: pointer; z-index: 1500; border: none;
+      font-weight: 1000; font-size: 1.38rem; letter-spacing: 0.14em;
+      text-indent: 0.14em; line-height: 1;
+      text-shadow: 0 1px 0 rgba(255,255,255,0.28), 0 2px 0 rgba(11,42,39,0.55), 0 4px 10px rgba(0,0,0,0.42);
+      transition: transform 0.12s ease, box-shadow 0.12s ease;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
     }
     .jyutping-fab:active { transform: scale(0.9); }
     
@@ -826,7 +836,7 @@
 		</div>
 		
 		<!-- 粵拼懸浮按鈕 -->
-	<button id="jyutpingFab" class="jyutping-fab" title="同音字查詢">🔍</button>
+	<button id="jyutpingFab" class="jyutping-fab" title="同音字查詢" aria-label="同音字查詢">同音</button>
 <script>
   (function(){
     "use strict";
@@ -2026,10 +2036,10 @@ try {
 
     function startDictTour(){
       startTour('dict', [
-        { title:'查單字教學 🔍', body:'輸入一個字，就會即時顯示速成／倉頡碼。', nextLabel:'開始' },
+        { title:'查單字教學', body:'輸入一個字，就會即時顯示速成／倉頡碼。', nextLabel:'開始' },
         { title:'第一步：輸入單字', body:'撳呢個大格，輸入／手寫一個字。', target:'#dictInput', advanceOn:{ event:'focus' } },
         { title:'第二步：睇結果／切換', body:'結果會喺呢度顯示；上面可以切換「速成／倉頡」。', target:'#dictResult' },
-        { title:'新功能：搵同音字 🔍', body:'右下角呢粒 🔍 可以用「中文搵中文」：輸入一個同音字 → 揀返你想要嗰個字。', target:'#jyutpingFab', nextLabel:'完成', advanceOn:{ event:'click' }, onAdvanceDone:()=> markTourDone('dict') }
+        { title:'新功能：搵同音字', body:'右下角呢粒「同音」掣可以用「中文搵中文」：輸入一個同音字 → 揀返你想要嗰個字。', target:'#jyutpingFab', nextLabel:'完成', advanceOn:{ event:'click' }, onAdvanceDone:()=> markTourDone('dict') }
       ]);
     }
 
@@ -2334,8 +2344,8 @@ try {
                 </span>
               </button>
             </div>
-            <div class="result-box" id="dictResult">
-              ${isReady ? (dictVal ? renderCodeBlocks(charData, dictVal.trim(), method, showRad) : `<div class="result-placeholder">手寫或輸入單字即時解碼</div>`) : `<div style="color:#94a3b8;">⏳ 碼表載入中，請稍後…</div>`}
+            <div class="result-box ${dictVal?'':'is-hidden'}" id="dictResult">
+              ${isReady ? (dictVal ? renderCodeBlocks(charData, dictVal.trim(), method, showRad) : '') : `<div style="color:#94a3b8;">⏳ 碼表載入中，請稍後…</div>`}
             </div>
 
             ${renderCharExtraHtml(dictVal)}
@@ -3851,6 +3861,7 @@ try {
     }
   })();
 </script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v833ccba57c9e4d2798f2e76cebdd09a11778172276447" integrity="sha512-57MDmcccJXYtNnH+ZiBwzC4jb2rvgVCEokYN+L/nLlmO8rfYT/gIpW2A569iJ/3b+0UEasghjuZH/ma3wIs/EQ==" data-cf-beacon='{"version":"2024.11.0","token":"4edd5f8ec12a48cfa682ab8261b80a79","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </body>
 </html>
 
