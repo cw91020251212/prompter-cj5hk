@@ -1926,7 +1926,9 @@ try {
     // ===== 發聲（可選／按鈕觸發）=====
     // 2026-06-27 曾移除自動朗讀以避免手機/PWA 問題。
     // 目前只保留『手動按鍵』讀單字：如裝置有 zh-HK / yue 語音就會出聲，冇就靜默。
+    let ttsToken = 0;
     function stopSpeaking(){
+      try { ttsToken++; } catch(e) {}
       try { window.speechSynthesis && window.speechSynthesis.cancel(); } catch(e) {}
     }
 
@@ -2006,6 +2008,89 @@ try {
       }
     }
 
+    function splitSpeechText(raw){
+      try {
+        let t = String(raw||'');
+        t = t.replace(/\r\n/g, '\n');
+        const tokens = t.split(/([。！？!?；;：:\n])/);
+        const chunks = [];
+        let buf = '';
+        for (let i = 0; i < tokens.length; i++) {
+          const seg = tokens[i];
+          if (!seg) continue;
+          buf += String(seg).replace(/[\t ]+/g, ' ');
+          if (/[。！？!?；;：\n]/.test(seg) || buf.length >= 80) {
+            const s = buf.trim();
+            if (s) chunks.push(s);
+            buf = '';
+          }
+        }
+        const last = buf.trim();
+        if (last) chunks.push(last);
+
+        const final = [];
+        chunks.forEach((s) => {
+          if (s.length <= 120) { final.push(s); return; }
+          for (let i = 0; i < s.length; i += 120) {
+            final.push(s.slice(i, i + 120));
+          }
+        });
+        return final.length ? final : [String(raw||'').trim()];
+      } catch(e){
+        return [String(raw||'').trim()];
+      }
+    }
+
+    // 朗讀全文（提詞機首頁用）：再次按下＝停止
+    async function speakCantoneseText(text){
+      try {
+        text = String(text||'').trim();
+        if (!text) return false;
+        if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) return false;
+
+        // Toggle：講緊就當停止
+        if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
+          stopSpeaking();
+          return true;
+        }
+
+        await waitVoices(700);
+        const voice = pickCantoneseVoice();
+
+        // 新一輪朗讀 token
+        const myToken = ++ttsToken;
+        try { window.speechSynthesis.cancel(); } catch(e) {}
+
+        const parts = splitSpeechText(text);
+        for (let i = 0; i < parts.length; i++) {
+          if (myToken !== ttsToken) break;
+          const part = String(parts[i] || '').trim();
+          if (!part) continue;
+          await new Promise((resolve) => {
+            try {
+              const u = new SpeechSynthesisUtterance(part);
+              if (voice) {
+                u.voice = voice;
+                u.lang = voice.lang || 'zh-HK';
+              } else {
+                u.lang = 'zh-HK';
+              }
+              u.rate = 0.95;
+              u.pitch = 1.0;
+              u.onend = () => resolve();
+              u.onerror = () => resolve();
+              window.speechSynthesis.speak(u);
+            } catch(err) {
+              resolve();
+            }
+          });
+        }
+        return true;
+      } catch(e){
+        return false;
+      }
+    }
+
     function getStatusBanner() {
       if (dictStatus === 'ready') {
         return ``;
@@ -2051,7 +2136,14 @@ try {
       if (active === 'prompter') {
         html += `
           <div class="prompter-area">
-            <div style="display:flex;justify-content:flex-end;align-items:center;margin-bottom:8px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;">
+              <button id="prompterTextSpeakBtn" aria-label="朗讀全文" ${text.trim() ? '' : 'disabled'} title="🔊 朗讀全文" style="background:rgba(255,255,255,0.08); border:1px solid #334155; color:#cbd5e1; width:44px; height:44px; padding:0; border-radius:14px; font-weight:900; cursor:pointer; display:flex; align-items:center; justify-content:center;">
+                <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" style="width:26px;height:26px;">
+                  <path d="M192 192h-80a16 16 0 00-16 16v96a16 16 0 0016 16h80l96 96V128l-96 96z" fill="#ffffff"/>
+                  <path d="M384 320c9.74-19.41 16-43.05 16-64 0-20.95-6.26-44.59-16-64" fill="none" stroke="#ffffff" stroke-width="32" stroke-linecap="round"/>
+                  <path d="M448 384c18.67-37.34 32-84.41 32-128 0-43.59-13.33-90.66-32-128" fill="none" stroke="#ffffff" stroke-width="32" stroke-linecap="round"/>
+                </svg>
+              </button>
               <div style="display:flex;gap:8px;">
                 <button id="replayTourBtn" style="background:rgba(255,255,255,0.08); border:1px solid #334155; color:#cbd5e1; padding:6px 12px; border-radius:12px; font-weight:800; cursor:pointer; font-size:0.9rem;" title="重播教學">🎓 教學</button>
                 <button id="fullscreenBtn" style="background:rgba(255,255,255,0.08); border:1px solid #334155; color:#cbd5e1; padding:6px 12px; border-radius:12px; font-weight:800; cursor:pointer; font-size:0.9rem;">🔲 全螢幕</button>
@@ -2262,6 +2354,10 @@ try {
             const arr = state.inputText.replace(/\s+/g,'').split('');
             btn.disabled = ((dictStatus !== 'ready' && dictStatus !== 'embedded') || arr.length === 0);
           }
+          const speakBtn = document.getElementById('prompterTextSpeakBtn');
+          if (speakBtn) {
+            speakBtn.disabled = (String(state.inputText||'').trim().length === 0);
+          }
           const faux = document.getElementById('fauxPlaceholder');
           if (faux) {
             faux.style.display = state.inputText.length === 0 ? 'flex' : 'none';
@@ -2273,6 +2369,16 @@ try {
         updateStartBtnState();
       }
 
+      const prompterTextSpeakBtn = document.getElementById('prompterTextSpeakBtn');
+      if (prompterTextSpeakBtn) {
+        prompterTextSpeakBtn.addEventListener('click', async (e) => {
+          e.preventDefault();
+          const t = String(state.inputText || '').trim();
+          if (!t) return;
+          await speakCantoneseText(t);
+        });
+      }
+
       const startBtn = document.getElementById('startBtn');
       if (startBtn) {
         startBtn.addEventListener('click', async () => {
@@ -2280,6 +2386,10 @@ try {
             const ok = await ensureDict();
             if (!ok) { alert('碼表尚未準備好，請稍後重試。'); return; }
           }
+
+          // 進入提詞模式前，先停止任何朗讀
+          stopSpeaking();
+
           const raw = Array.from(state.inputText);
           const arr = [];
           const map = [];
@@ -2909,19 +3019,8 @@ try {
       const hintLetters = (charData ? (method === 'quick' ? (charData.q || []) : (charData.cj || [])) : []);
       const hintKbdHtml = renderHintKeyboardHtml(hintLetters, method === 'quick', showRad);
 
-      // ===== 提詞機：粵語發聲（手動） =====
-      // 參考「查單字」同款喇叭：撳掣讀出目前字（Cantonese/zh-HK 優先）
-      let ttsBarHtml = `
-        <div class="tts-floatbar" aria-label="粵語發聲">
-          <button id="prompterSpeakBtn" aria-label="聽粵音" ${char ? '' : 'disabled'} title="🔊 聽粵音">
-            <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-              <path d="M192 192h-80a16 16 0 00-16 16v96a16 16 0 0016 16h80l96 96V128l-96 96z" fill="#ffffff"/>
-              <path d="M384 320c9.74-19.41 16-43.05 16-64 0-20.95-6.26-44.59-16-64" fill="none" stroke="#ffffff" stroke-width="32" stroke-linecap="round"/>
-              <path d="M448 384c18.67-37.34 32-84.41 32-128 0-43.59-13.33-90.66-32-128" fill="none" stroke="#ffffff" stroke-width="32" stroke-linecap="round"/>
-            </svg>
-          </button>
-        </div>
-      `;
+      // ===== 提詞機：喇叭已移除（打字模式只讀單字，唔符合需求） =====
+      let ttsBarHtml = ``;
 
       let dialogHtml = '';
       if (state.showSaveDialog) {
@@ -2990,16 +3089,6 @@ try {
         });
       }
 
-      // 提詞機：喇叭讀出目前字（粵語優先）
-      const pSpeak = document.getElementById('prompterSpeakBtn');
-      if (pSpeak) {
-        pSpeak.addEventListener('click', async (e) => {
-          e.preventDefault(); e.stopPropagation();
-          const ch = String((state.textArray || [])[state.currentIndex] || '').trim();
-          if (!ch) return;
-          await speakCantoneseChar(ch);
-        });
-      }
 
       function handleTypingOverlayTap(e) {
         if (state.showSaveDialog) return;
