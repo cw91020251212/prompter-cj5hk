@@ -325,10 +325,10 @@
     .dict-help-btn{
       grid-column: 3;
       justify-self: end;
-      width: 58px;
-      height: 58px;
+      width: 70px;
+      height: 70px;
       padding: 6px 6px;
-      border-radius: 16px;
+      border-radius: 18px;
       font-size: 1.02rem;
       border: 1px solid #334155;
       background: rgba(255,255,255,0.06);
@@ -338,13 +338,20 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 2px;
+      gap: 4px;
       line-height: 1.05;
       white-space: normal;
       overflow: hidden;
     }
-    .dict-help-btn .help-ic{ font-size: 1.15rem; line-height: 1; }
-    .dict-help-btn .help-txt{ font-size: 1.02rem; letter-spacing: 0.06em; }
+    .dict-help-btn .help-ic{
+      font-size: 1.55rem;
+      line-height: 1;
+      text-shadow:
+        0 0 10px rgba(250, 204, 21, 0.65),
+        0 0 18px rgba(245, 158, 11, 0.45);
+      filter: drop-shadow(0 0 10px rgba(250, 204, 21, 0.35));
+    }
+    .dict-help-btn .help-txt{ font-size: 1.06rem; letter-spacing: 0.08em; }
     .dict-help-btn:active{ transform: translateY(1px); }
     /* 查單字：右上角喇叭（發聲） */
     #dictSpeakBtn{
@@ -355,10 +362,10 @@
     }
     #dictSpeakBtn svg { width: 26px; height: 26px; }
     #dictSpeakBtn:active { opacity: 0.85; transform: translateY(1px) scale(0.97); }
-    #dictSpeakBtn:disabled { opacity: 0.35 !important; }
+    #dictSpeakBtn:disabled { opacity: 0.55 !important; color: #64748b; }
     .dict-top button:active { transform: translateY(1px); }
 
-    .dict-top button:disabled { opacity: 0.35; cursor: not-allowed; }
+    .dict-top button:disabled { opacity: 0.55; cursor: not-allowed; color: #64748b; }
     .result-box {
       width: 100%; background: #0b1220; border: 2px solid #334155; border-radius: 24px; padding: 24px 12px; min-height: 150px; display: flex; flex-direction: column; align-items: center; justify-content: center; margin-top: 8px;
     }
@@ -840,6 +847,51 @@
 
     .tts-floatbar{ position: fixed; top: calc(env(safe-area-inset-top, 0px) + 10px); right: calc(env(safe-area-inset-right, 0px) + 10px); z-index: 5000; display:flex; gap:8px; align-items:center; transition: transform 0.2s ease; }
     .tts-floatbar button{ width:44px;height:44px; border-radius:14px; border:2px solid #334155; background: rgba(15,23,42,0.92); color:#e2e8f0; font-size:1.25rem; font-weight:900; cursor:pointer; display:flex;align-items:center;justify-content:center; backdrop-filter: blur(6px); }
+    .tts-floatbar button:disabled{ opacity: 0.55; cursor: not-allowed; color: #64748b; }
+
+    /* 提詞機：全文朗讀喇叭（未輸入前要灰色） */
+    #prompterTextSpeakBtn.prompter-speak-btn{
+      background: rgba(255,255,255,0.08);
+      border: 1px solid #334155;
+      color: #e2e8f0;
+      width: 44px;
+      height: 44px;
+      padding: 0;
+      border-radius: 14px;
+      font-weight: 900;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #prompterTextSpeakBtn.prompter-speak-btn:disabled{
+      opacity: 0.55;
+      cursor: not-allowed;
+      color: #64748b;
+    }
+
+    /* 提詞機：教學按鈕（燈泡更易見） */
+    .prompter-help-btn{
+      background: rgba(255,255,255,0.08);
+      border: 1px solid #334155;
+      color: #cbd5e1;
+      padding: 8px 12px;
+      border-radius: 12px;
+      font-weight: 900;
+      cursor: pointer;
+      font-size: 1.02rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .prompter-help-btn .help-ic{
+      font-size: 1.25rem;
+      text-shadow:
+        0 0 10px rgba(250, 204, 21, 0.65),
+        0 0 18px rgba(245, 158, 11, 0.45);
+      filter: drop-shadow(0 0 10px rgba(250, 204, 21, 0.35));
+    }
+    .prompter-help-btn:hover{ border-color: #60a5fa; color:#e2e8f0; }
     .tts-floatbar button:hover{ border-color:#60a5fa; }
     .tts-float-panel{ position: fixed; top: calc(env(safe-area-inset-top, 0px) + 60px); right: calc(env(safe-area-inset-right, 0px) + 10px); width: min(360px, calc(100vw - 20px)); z-index: 5100; margin: 0; padding: 16px; background:#0b1220; border:1px solid #334155; border-radius:16px; box-shadow: 0 18px 60px rgba(0,0,0,0.55); display:none; }
     .tts-float-panel.open{ display:block; }
@@ -2194,6 +2246,7 @@ try {
       startTour('prompter', [
         { title:'歡迎使用 👋', body:'我用 15 秒帶你上手：輸入內容 → 按「開始」。', nextLabel:'開始教學' },
         { title:'第一步：輸入內容', body:'撳呢度輸入／貼上提詞內容。', target:'#inputTextArea', advanceOn:{ event:'focus' } },
+        { title:'可選：朗讀全文 🔊', body:'未輸入之前，喇叭會係灰色；輸入內容之後就會亮起。撳佢可以朗讀全文。', target:'#prompterTextSpeakBtn' },
         { title:'第二步：開始提詞', body:'輸入後，撳「開始」進入提詞模式。（如果未亮起，先輸入內容）', target:'#startBtn', blurActive:true, advanceOn:{ event:'click', onlyWhenEnabled:true }, onAdvanceDone:()=> markTourDone('prompter') }
       ]);
     }
@@ -2201,9 +2254,11 @@ try {
     function startDictTour(){
       startTour('dict', [
         { title:'查單字教學', body:'輸入一個字，就會即時顯示速成／倉頡碼。', nextLabel:'開始' },
-        { title:'第一步：輸入單字', body:'撳呢個大格，輸入／手寫一個字。', target:'#dictInput', advanceOn:{ event:'focus' } },
-        { title:'第二步：睇結果／切換', body:'結果會喺呢度顯示；上面可以切換「速成／倉頡」。', target:'#dictResult' },
-        { title:'新功能：搵同音字', body:'右下角呢粒「同音」掣可以用「中文搵中文」：輸入一個同音字 → 揀返你想要嗰個字。', target:'#jyutpingFab', nextLabel:'完成', advanceOn:{ event:'click' }, onAdvanceDone:()=> markTourDone('dict') }
+        { title:'第一步：輸入單字', body:'撳呢個大格，輸入一個字。', target:'#dictInput', advanceOn:{ event:'focus' } },
+        { title:'可選：聽粵音 🔊', body:'未輸入之前，右上角喇叭會係灰色；輸入咗字就會亮起。撳佢可以聽粵音。', target:'#dictSpeakBtn' },
+        { title:'第二步：切換速成／倉頡', body:'呢度可以切換「速成／倉頡」。', target:'#dictBtnCangjie' },
+        { title:'第三步：睇結果', body:'結果會喺呢度顯示。', target:'#dictResult' },
+        { title:'新功能：搵近音字', body:'右下角呢粒「近音」掣可以用「中文搵中文」：輸入一個近音字 → 揀返你想要嗰個字。', target:'#jyutpingFab', nextLabel:'完成', advanceOn:{ event:'click' }, onAdvanceDone:()=> markTourDone('dict') }
       ]);
     }
 
@@ -2439,15 +2494,15 @@ try {
         html += `
           <div class="prompter-area">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;">
-              <button id="prompterTextSpeakBtn" aria-label="朗讀全文" ${text.trim() ? '' : 'disabled'} title="🔊 朗讀全文" style="background:rgba(255,255,255,0.08); border:1px solid #334155; color:#cbd5e1; width:44px; height:44px; padding:0; border-radius:14px; font-weight:900; cursor:pointer; display:flex; align-items:center; justify-content:center;">
+              <button id="prompterTextSpeakBtn" class="prompter-speak-btn" aria-label="朗讀全文" ${text.trim() ? '' : 'disabled'} title="🔊 朗讀全文">
                 <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" style="width:26px;height:26px;">
-                  <path d="M192 192h-80a16 16 0 00-16 16v96a16 16 0 0016 16h80l96 96V128l-96 96z" fill="#ffffff"/>
-                  <path d="M384 320c9.74-19.41 16-43.05 16-64 0-20.95-6.26-44.59-16-64" fill="none" stroke="#ffffff" stroke-width="32" stroke-linecap="round"/>
-                  <path d="M448 384c18.67-37.34 32-84.41 32-128 0-43.59-13.33-90.66-32-128" fill="none" stroke="#ffffff" stroke-width="32" stroke-linecap="round"/>
+                  <path d="M192 192h-80a16 16 0 00-16 16v96a16 16 0 0016 16h80l96 96V128l-96 96z" fill="currentColor"/>
+                  <path d="M384 320c9.74-19.41 16-43.05 16-64 0-20.95-6.26-44.59-16-64" fill="none" stroke="currentColor" stroke-width="32" stroke-linecap="round"/>
+                  <path d="M448 384c18.67-37.34 32-84.41 32-128 0-43.59-13.33-90.66-32-128" fill="none" stroke="currentColor" stroke-width="32" stroke-linecap="round"/>
                 </svg>
               </button>
               <div style="display:flex;gap:8px;">
-                <button id="replayTourBtn" style="background:rgba(255,255,255,0.08); border:1px solid #334155; color:#cbd5e1; padding:6px 12px; border-radius:12px; font-weight:800; cursor:pointer; font-size:0.9rem;" title="重播教學">🎓 教學</button>
+                <button id="replayTourBtn" class="prompter-help-btn" title="重播教學"><span class="help-ic" aria-hidden="true">💡</span><span class="help-txt">教學</span></button>
                 <button id="fullscreenBtn" style="background:rgba(255,255,255,0.08); border:1px solid #334155; color:#cbd5e1; padding:6px 12px; border-radius:12px; font-weight:800; cursor:pointer; font-size:0.9rem;">🔲 全螢幕</button>
               </div>
             </div>
@@ -2481,9 +2536,9 @@ try {
             <div class="dict-title">查單字</div>
             <button id="dictSpeakBtn" aria-label="聽粵音" ${dictVal?'':'disabled'} title="🔊 聽粵音">
               <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-                <path d="M192 192h-80a16 16 0 00-16 16v96a16 16 0 0016 16h80l96 96V128l-96 96z" fill="#ffffff"/>
-                <path d="M384 320c9.74-19.41 16-43.05 16-64 0-20.95-6.26-44.59-16-64" fill="none" stroke="#ffffff" stroke-width="32" stroke-linecap="round"/>
-                <path d="M448 384c18.67-37.34 32-84.41 32-128 0-43.59-13.33-90.66-32-128" fill="none" stroke="#ffffff" stroke-width="32" stroke-linecap="round"/>
+                <path d="M192 192h-80a16 16 0 00-16 16v96a16 16 0 0016 16h80l96 96V128l-96 96z" fill="currentColor"/>
+                <path d="M384 320c9.74-19.41 16-43.05 16-64 0-20.95-6.26-44.59-16-64" fill="none" stroke="currentColor" stroke-width="32" stroke-linecap="round"/>
+                <path d="M448 384c18.67-37.34 32-84.41 32-128 0-43.59-13.33-90.66-32-128" fill="none" stroke="currentColor" stroke-width="32" stroke-linecap="round"/>
               </svg>
             </button>
           </div>
@@ -2495,7 +2550,7 @@ try {
                   <div class="dict-caret"></div>
                 </div>
               </div>
-              <button id="replayTourBtn" class="dict-help-btn" title="重播教學"><span class="help-ic">🎓</span><span class="help-txt">教學</span></button>
+              <button id="replayTourBtn" class="dict-help-btn" title="重播教學"><span class="help-ic" aria-hidden="true">💡</span><span class="help-txt">教學</span></button>
             </div>
             <div class="toggle-bar" style="max-width:380px;margin:0 auto 10px;">
               <button id="dictBtnQuick" class="${method==='quick'?'active':''}">
