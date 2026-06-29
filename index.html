@@ -69,6 +69,11 @@
     }
     .tabs button.active { color: #60a5fa; border-bottom-color: #3b82f6; background: #1e293b; }
     .tabs button:hover { color: #e2e8f0; }
+
+    /* 提詞機頁：右邊「查單字」按鈕改綠色（未 active 亦顯示） */
+    .tabs button[data-tab="dict"]{ color: #2dd4bf; }
+    .tabs button[data-tab="dict"]:hover{ color: #a7f3d0; }
+    .tabs button[data-tab="dict"].active{ color: #2dd4bf; border-bottom-color: #2dd4bf; }
     .content { padding: 18px 18px 20px; overflow-y: auto; flex: 1; }
 
     .app.mode-dict .status-banner { padding: 8px 12px; font-size: calc(0.95rem * var(--ui-scale)); }
@@ -114,6 +119,15 @@
       box-shadow: 0 6px 16px rgba(0,0,0,0.20);
     }
     .app.mode-dict .dict-top button:hover{ border-color: var(--dict-border-strong); }
+
+    /* 同款式：輸入欄右邊教學按鈕 */
+    .app.mode-dict .dict-help-btn{
+      background: rgba(0, 24, 24, 0.50);
+      border: 1px solid var(--dict-border);
+      color: var(--dict-text);
+      box-shadow: 0 6px 16px rgba(0,0,0,0.20);
+    }
+    .app.mode-dict .dict-help-btn:hover{ border-color: var(--dict-border-strong); }
 
     /* 輸入大字框 */
     .app.mode-dict .dict-input{
@@ -190,7 +204,23 @@
     body.mode-dict-page .jyutping-input{ background: rgba(0, 16, 16, 0.82); border-color: var(--dict-border); }
     body.mode-dict-page .jyutping-input:focus{ border-color: rgba(45, 212, 191, 0.55); }
     body.mode-dict-page .jyutping-actions button.primary{ background: var(--dict-accent); border-color: rgba(224,255,248,0.22); box-shadow: 0 4px 0 rgba(0,0,0,0.30); }
-    body.mode-dict-page .jyutping-fab{ background: var(--dict-accent); }
+
+    /* 右下角圓形「近音」：綠色 3D 漸變（左下深、右上淺） */
+    body.mode-dict-page .jyutping-fab{
+      background: linear-gradient(to top right, #0f766e 0%, #22c55e 55%, #86efac 100%);
+      border: 1px solid rgba(224,255,248,0.22);
+      box-shadow:
+        0 14px 28px rgba(0,0,0,0.40),
+        inset 2px 2px 0 rgba(255,255,255,0.22),
+        inset -8px -10px 0 rgba(0,0,0,0.18);
+    }
+    body.mode-dict-page .jyutping-fab:active{
+      transform: translateY(1px);
+      box-shadow:
+        0 10px 20px rgba(0,0,0,0.36),
+        inset 2px 2px 0 rgba(255,255,255,0.20),
+        inset -8px -10px 0 rgba(0,0,0,0.20);
+    }
 
     /* 查單字載入提示（碼表下載 / 錯誤提示） */
     .app.mode-dict .status-banner{
@@ -276,15 +306,56 @@
     .dict-input-wrap.has-value .dict-pen{ opacity: 0; transform: scale(0.92); }
     @keyframes caretBlink { 0%, 100% { opacity: 1; } 50% { opacity: 0.15; } }
 
-    .dict-top { width: 100%; display:flex; align-items:center; justify-content:space-between; margin-bottom: 8px; }
-    .dict-top button { background: rgba(255,255,255,0.06); border: 1px solid #334155; color: #e2e8f0; width: 44px; height: 44px; border-radius: 14px; font-size: 1.6rem; font-weight: 900; cursor: pointer; }
-    #dictSpeakBtn { 
-      background: transparent !important; border: none !important; box-shadow: none !important; 
-      display: flex; align-items: center; justify-content: center; padding: 0;
+    /* 查單字：標題列（標題要真・置中） */
+    .dict-top{ width:100%; position: relative; display:flex; align-items:center; justify-content:center; gap:10px; margin-bottom: 8px; min-height: 44px; }
+    .dict-title{ width:100%; text-align:center; font-size: calc(1.25rem * var(--ui-scale)); color: var(--dict-teal, #2dd4bf); letter-spacing: 0.08em; user-select:none; padding: 0 60px; pointer-events:none; }
+    .dict-top button { background: rgba(255,255,255,0.06); border: 1px solid #334155; color: #e2e8f0; width: 44px; height: 44px; border-radius: 14px; font-size: 1.6rem; font-weight: 900; cursor: pointer; position: relative; z-index: 2; }
+    #backToPrompter{ position:absolute; left:0; top:0; bottom:0; margin:auto 0; }
+    #dictSpeakBtn{ position:absolute; right:0; top:0; bottom:0; margin:auto 0; }
+
+    /* 查單字：輸入欄右側教學按鈕（上下置中貼近輸入欄） */
+    /* 查單字：輸入區一定要「真・置中」
+       用 grid 3 欄：左邊 1fr / 中間輸入框 / 右邊教學掣 1fr
+       咁無論右邊教學掣有幾闊，輸入框都會保持正中。
+    */
+    .dict-input-row{ display:grid; grid-template-columns: 1fr auto 1fr; align-items:center; column-gap:10px; max-width: 420px; margin: 0 auto; }
+    .dict-input-row .dict-input-wrap{ grid-column: 2; justify-self: center; }
+
+    /* 右邊教學掣：縮細、唔再打橫迫位，亦唔會出界 */
+    .dict-help-btn{
+      grid-column: 3;
+      justify-self: end;
+      width: 58px;
+      height: 58px;
+      padding: 6px 6px;
+      border-radius: 16px;
+      font-size: 1.02rem;
+      border: 1px solid #334155;
+      background: rgba(255,255,255,0.06);
+      color:#e2e8f0;
+      cursor:pointer;
+      display:flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      line-height: 1.05;
+      white-space: normal;
+      overflow: hidden;
     }
-    #dictSpeakBtn svg { width: 32px; height: 32px; }
-    #dictSpeakBtn:active { opacity: 0.6; transform: scale(0.95); }
-    #dictSpeakBtn:disabled { opacity: 0.2 !important; }
+    .dict-help-btn .help-ic{ font-size: 1.15rem; line-height: 1; }
+    .dict-help-btn .help-txt{ font-size: 1.02rem; letter-spacing: 0.06em; }
+    .dict-help-btn:active{ transform: translateY(1px); }
+    /* 查單字：右上角喇叭（發聲） */
+    #dictSpeakBtn{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:0;
+    }
+    #dictSpeakBtn svg { width: 26px; height: 26px; }
+    #dictSpeakBtn:active { opacity: 0.85; transform: translateY(1px) scale(0.97); }
+    #dictSpeakBtn:disabled { opacity: 0.35 !important; }
     .dict-top button:active { transform: translateY(1px); }
 
     .dict-top button:disabled { opacity: 0.35; cursor: not-allowed; }
@@ -425,7 +496,7 @@
       width: 74px; height: 74px;
       background: radial-gradient(circle at 32% 28%, #5f8dff 0%, #2f63ff 38%, #1848d8 72%, #1238a9 100%);
       color: #ffffff; border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
+      display: none; align-items: center; justify-content: center;
       box-shadow: 0 10px 22px rgba(0,0,0,0.42), inset 0 2px 10px rgba(255,255,255,0.18), inset 0 -8px 14px rgba(0,0,0,0.18);
       cursor: pointer; z-index: 1500; border: none;
       font-weight: 1000; font-size: 1.38rem; letter-spacing: 0.14em;
@@ -836,7 +907,7 @@
 		</div>
 		
 		<!-- 粵拼懸浮按鈕 -->
-	<button id="jyutpingFab" class="jyutping-fab" title="同音字查詢" aria-label="同音字查詢">同音</button>
+	<button id="jyutpingFab" class="jyutping-fab" title="近音字查詢" aria-label="近音字查詢">近音</button>
 <script>
   (function(){
     "use strict";
@@ -2314,7 +2385,7 @@ try {
         html += `
           <div class="dict-top">
             <button id="backToPrompter" aria-label="返回">✕</button>
-            <button id="replayTourBtn" style="width:auto;height:44px;padding:0 14px;font-size:1.05rem;border-radius:14px;" title="重播教學">🎓 教學</button>
+            <div class="dict-title">查單字</div>
             <button id="dictSpeakBtn" aria-label="聽粵音" ${dictVal?'':'disabled'} title="🔊 聽粵音">
               <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
                 <path d="M192 192h-80a16 16 0 00-16 16v96a16 16 0 0016 16h80l96 96V128l-96 96z" fill="#ffffff"/>
@@ -2324,11 +2395,14 @@ try {
             </button>
           </div>
           <div class="dict-area">
-            <div id="dictInputWrap" class="dict-input-wrap ${dictVal?'has-value':''}">
-              <input id="dictInput" class="dict-input" type="text" maxlength="1" placeholder="" value="${escapeHtml(dictVal)}">
-              <div class="dict-pen" aria-hidden="true">
-                <div class="dict-caret"></div>
+            <div class="dict-input-row">
+              <div id="dictInputWrap" class="dict-input-wrap ${dictVal?'has-value':''}">
+                <input id="dictInput" class="dict-input" type="text" maxlength="1" placeholder="" value="${escapeHtml(dictVal)}">
+                <div class="dict-pen" aria-hidden="true">
+                  <div class="dict-caret"></div>
+                </div>
               </div>
+              <button id="replayTourBtn" class="dict-help-btn" title="重播教學"><span class="help-ic">🎓</span><span class="help-txt">教學</span></button>
             </div>
             <div class="toggle-bar" style="max-width:380px;margin:0 auto 10px;">
               <button id="dictBtnQuick" class="${method==='quick'?'active':''}">
@@ -3472,7 +3546,8 @@ try {
         '這':'这','個':'个','們':'们','來':'来','為':'为','後':'后','過':'过','會':'会','與':'与','還':'还','裡':'里',
         '應':'应','說':'说','時':'时','對':'对','發':'发','國':'国','學':'学','點':'点','嗎':'吗','話':'话',
         '見':'见','讓':'让','開':'开','關':'关','門':'门','書':'书','電':'电','聲':'声','體':'体',
-        '愛':'爱','頭':'头','進':'进','樣':'样','誰':'谁'
+        '愛':'爱','頭':'头','進':'进','樣':'样','誰':'谁',
+        '動':'动','東':'东','凍':'冻','棟':'栋'
       };
       const SIMPL_TO_TRAD = Object.create(null);
       for (const k of Object.keys(TRAD_TO_SIMPL)) SIMPL_TO_TRAD[TRAD_TO_SIMPL[k]] = k;
