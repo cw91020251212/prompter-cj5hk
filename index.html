@@ -1933,9 +1933,9 @@
       cjTtsPanelOpen: false,
       _cjTtsAutoSpeakPending: false,
 
-      // ===== 提詞機（打字模式）：中文單字朗讀（自動／可關） =====
-      typingSpeakEnabled: false,
-      _typingSpeakPending: false,
+      // ===== 提詞機（打字模式）：朗讀模式 (0:關閉, 1:讀內容, 2:讀倉頡碼) =====
+      prompterSpeakMode: 0, 
+      _prompterSpeakPending: false,
 
       textArray: [],
       textArrayRaw: [],
@@ -3298,10 +3298,18 @@ try {
         const idx = state.currentIndex || 0;
         const ch = String(arr[idx] || '');
         const cd = ch ? getCharCodes(ch) : null;
-        if (!cd || !canShowCjEnglishTts(cd)) return false;
-        const lettersText = formatLettersForSpeech(cd.cj);
-        if (!lettersText) return false;
-        return await speakEnglishLettersRepeat(lettersText, state.cjTtsRepeat, state.cjTtsRate);
+        if (!cd) return false;
+        
+        if (state.prompterSpeakMode === 2) {
+          // 模式 2: 讀倉頡碼（日、月、金...）
+          const cj = cd.cj.filter(Boolean);
+          const radicals = cj.map(L => RADICAL_MAP[String(L).toUpperCase()] || L);
+          const text = radicals.join(', ');
+          return await speakCantoneseCharRepeat(text, state.cjTtsRepeat, state.cjTtsRate);
+        } else {
+          // 模式 1: 讀內容（逐個字讀）
+          return await speakCantoneseCharRepeat(ch, state.cjTtsRepeat, Math.min(1.4, Math.max(0.6, Number(state.cjTtsRate||1) * 0.9)));
+        }
       } catch(e){
         return false;
       }
@@ -4516,33 +4524,24 @@ try {
       const hintLetters = (charData ? (method === 'quick' ? (charData.q || []) : (charData.cj || [])) : []);
       const hintKbdHtml = renderHintKeyboardHtml(hintLetters, method === 'quick', showRad);
 
-      // ===== 提詞機（打字模式）：朗讀（只顯示 1 個喇叭） =====
-      // - 英文倉頡碼（倉頡 + 英文）→ 顯示「英文喇叭」（左）
-      // - 其他情況 → 顯示「中文喇叭」（右）
-      const showCjEngTts = (method === 'cangjie' && !showRad && canShowCjEnglishTts(charData));
-
-      // 互斥：避免兩邊同時開
-      if (showCjEngTts && state.typingSpeakEnabled) { state.typingSpeakEnabled = false; state._typingSpeakPending = false; }
-      if (!showCjEngTts && state.cjTtsEnabled) { state.cjTtsEnabled = false; state._cjTtsAutoSpeakPending = false; }
+      // ===== 提詞機（打字模式）：三段切換喇叭 =====
+      let ttsModeLabel = '';
+      if (state.prompterSpeakMode === 1) ttsModeLabel = '<span style="position:absolute;bottom:-4px;right:-4px;font-size:0.65rem;background:#2563eb;color:white;padding:1px 4px;border-radius:4px;font-weight:900;">文</span>';
+      else if (state.prompterSpeakMode === 2) ttsModeLabel = '<span style="position:absolute;bottom:-4px;right:-4px;font-size:0.65rem;background:#059669;color:white;padding:1px 4px;border-radius:4px;font-weight:900;">碼</span>';
 
       let ttsBarHtml = `
         <div class="typing-ttsbar" id="typingTtsBar" aria-label="朗讀控制">
-          <button id="cjTtsSpeakBtn" class="tts-ic-btn ${state.cjTtsEnabled ? 'on' : ''} ${showCjEngTts ? '' : 'is-hidden'}" aria-label="讀英文字母（自動）" title="讀英文字母（自動）" ${showCjEngTts ? '' : 'disabled'}>
-            <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-              <path d="M192 192h-80a16 16 0 00-16 16v96a16 16 0 0016 16h80l96 96V128l-96 96z" fill="currentColor"/>
-              <path d="M384 320c9.74-19.41 16-43.05 16-64 0-20.95-6.26-44.59-16-64" fill="none" stroke="currentColor" stroke-width="32" stroke-linecap="round"/>
-              <path d="M448 384c18.67-37.34 32-84.41 32-128 0-43.59-13.33-90.66-32-128" fill="none" stroke="currentColor" stroke-width="32" stroke-linecap="round"/>
-            </svg>
-          </button>
+          <div style="width:46px;"></div> <!-- 保持間距 -->
 
           <button id="cjTtsGearBtn" class="tts-ic-btn gear" aria-label="朗讀設定" title="朗讀設定">⚙</button>
 
-          <button id="typingSpeakBtn" class="tts-ic-btn ${state.typingSpeakEnabled ? 'on' : ''} ${showCjEngTts ? 'is-hidden' : ''}" aria-label="讀中文（自動）" title="讀中文（自動）" ${showCjEngTts ? 'disabled' : ''}>
+          <button id="prompterCycleSpeakBtn" class="tts-ic-btn ${state.prompterSpeakMode !== 0 ? 'on' : ''}" aria-label="循環切換朗讀模式" title="切換：內容 -> 倉頡碼 -> 關閉" style="position:relative;">
             <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
               <path d="M192 192h-80a16 16 0 00-16 16v96a16 16 0 0016 16h80l96 96V128l-96 96z" fill="currentColor"/>
               <path d="M384 320c9.74-19.41 16-43.05 16-64 0-20.95-6.26-44.59-16-64" fill="none" stroke="currentColor" stroke-width="32" stroke-linecap="round"/>
               <path d="M448 384c18.67-37.34 32-84.41 32-128 0-43.59-13.33-90.66-32-128" fill="none" stroke="currentColor" stroke-width="32" stroke-linecap="round"/>
             </svg>
+            ${ttsModeLabel}
           </button>
         </div>
 
@@ -4677,32 +4676,28 @@ try {
         panel?.addEventListener('click', (e)=>{ e.stopPropagation(); });
       }
 
-      // 提詞機（打字模式）：中文朗讀喇叭
-      const typingSpeakBtn = document.getElementById('typingSpeakBtn');
-      if (typingSpeakBtn) {
-        typingSpeakBtn.addEventListener('click', async (e)=>{
+      // 提詞機（打字模式）：循環切換喇叭 (內容 -> 碼 -> 關)
+      const cycleBtn = document.getElementById('prompterCycleSpeakBtn');
+      if (cycleBtn) {
+        cycleBtn.addEventListener('click', (e)=>{
           e.preventDefault(); e.stopPropagation();
-          state.typingSpeakEnabled = !state.typingSpeakEnabled;
-          if (!state.typingSpeakEnabled) {
+          // 循環：0 -> 1 -> 2 -> 0
+          state.prompterSpeakMode = (state.prompterSpeakMode + 1) % 3;
+          
+          if (state.prompterSpeakMode === 0) {
             try { stopSpeaking(); } catch(err) {}
+          } else {
+            // 開啟新模式時即刻讀一次
+            state._prompterSpeakPending = true;
           }
-          // 開啟時即刻讀一次
-          state._typingSpeakPending = state.typingSpeakEnabled;
           render();
         });
       }
 
-      // 英文倉頡碼朗讀：如果需要自動讀，就喺 render 後執行
-      if (showCjEngTts && state.cjTtsEnabled && state._cjTtsAutoSpeakPending) {
-        state._cjTtsAutoSpeakPending = false;
+      // 提詞機朗讀執行
+      if (state.prompterSpeakMode !== 0 && state._prompterSpeakPending) {
+        state._prompterSpeakPending = false;
         setTimeout(()=>{ speakCurrentCjEnglishCode(); }, 0);
-      }
-
-      // 中文朗讀：如果需要自動讀，就喺 render 後執行
-      if (state.typingSpeakEnabled && state._typingSpeakPending) {
-        state._typingSpeakPending = false;
-        const ch = (state.textArray && state.textArray[state.currentIndex]) ? String(state.textArray[state.currentIndex]) : '';
-        setTimeout(()=>{ speakCantoneseCharRepeat(ch, state.cjTtsRepeat, Math.min(1.4, Math.max(0.6, Number(state.cjTtsRate||1) * 0.9))); }, 0);
       }
 
       const hkBtn = document.getElementById('hintKbdToggle');
@@ -4779,8 +4774,7 @@ try {
       if (state.currentIndex < state.textArray.length - 1) { 
         state.currentIndex++; 
         state.showSaveDialog = false;
-        if (state.cjTtsEnabled) state._cjTtsAutoSpeakPending = true;
-        if (state.typingSpeakEnabled) state._typingSpeakPending = true;
+        if (state.prompterSpeakMode !== 0) state._prompterSpeakPending = true;
         render();
       } else { 
         state.hintKbdOn = false;
@@ -4792,8 +4786,7 @@ try {
       if (state.currentIndex > 0) {
         state.currentIndex--;
         state.showSaveDialog = false;
-        if (state.cjTtsEnabled) state._cjTtsAutoSpeakPending = true;
-        if (state.typingSpeakEnabled) state._typingSpeakPending = true;
+        if (state.prompterSpeakMode !== 0) state._prompterSpeakPending = true;
         render();
       }
     }
