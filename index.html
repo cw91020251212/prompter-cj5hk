@@ -308,7 +308,7 @@
 
     /* 查單字：標題列（標題要真・置中） */
     .dict-top{ width:100%; position: relative; display:flex; align-items:center; justify-content:center; gap:10px; margin-bottom: 8px; min-height: 44px; }
-    .dict-title{ width:100%; text-align:center; font-size: calc(1.25rem * var(--ui-scale)); color: var(--dict-teal, #2dd4bf); letter-spacing: 0.08em; user-select:none; padding: 0 60px; pointer-events:none; }
+    .dict-title{ width:100%; text-align:center; font-size: calc(1.25rem * var(--ui-scale)); color: var(--dict-teal, #2dd4bf); letter-spacing: 0.08em; user-select:none; padding: 0 116px; pointer-events:none; }
     .dict-top button { background: rgba(255,255,255,0.06); border: 1px solid #334155; color: #e2e8f0; width: 44px; height: 44px; border-radius: 14px; font-size: 1.6rem; font-weight: 900; cursor: pointer; position: relative; z-index: 2; }
     #backToPrompter{ position:absolute; left:0; top:0; bottom:0; margin:auto 0; }
     #dictSpeakBtn{ position:absolute; right:0; top:0; bottom:0; margin:auto 0; }
@@ -354,13 +354,33 @@
     .dict-help-btn .help-txt{ font-size: 1.06rem; letter-spacing: 0.08em; }
     .dict-help-btn:active{ transform: translateY(1px); }
     /* 查單字：右上角喇叭（發聲） */
+    /* 查單字：右上角操作（複製／喇叭） */
+    .dict-top-actions{ position:absolute; right:0; top:0; bottom:0; display:flex; gap:10px; align-items:center; z-index:2; }
+    .dict-top .dict-top-actions #dictSpeakBtn{ position: static; }
+    .dict-top .dict-top-actions #dictCopyBtn{ position: static; }
+
     #dictSpeakBtn{
       display:flex;
       align-items:center;
       justify-content:center;
       padding:0;
+      background: transparent !important;
+      border: 0 !important;
+      box-shadow: none !important;
     }
     #dictSpeakBtn svg { width: 26px; height: 26px; }
+    /* 複製掣：細少少＋全透明底 */
+    .dict-top-actions #dictCopyBtn{
+      width: 36px;
+      height: 36px;
+      border-radius: 0;
+      background: transparent !important;
+      border: 0 !important;
+      box-shadow: none !important;
+      padding: 0;
+    }
+    #dictCopyBtn svg { width: 20px; height: 20px; display:block; }
+    #dictCopyBtn svg *{ stroke: currentColor; fill: currentColor; }
     #dictSpeakBtn:active { opacity: 0.85; transform: translateY(1px) scale(0.97); }
     #dictSpeakBtn:disabled { opacity: 0.55 !important; color: #64748b; }
     .dict-top button:active { transform: translateY(1px); }
@@ -638,6 +658,80 @@
     }
     .typing-exit:hover{ background: rgba(255,255,255,0.18); border-color: rgba(147,197,253,0.55); }
 
+    /* ===== 提詞機（打字模式）：英文倉頡碼朗讀（喇叭＋齒輪） ===== */
+    .cjtts-bar{
+      position: absolute;
+      top: calc(env(safe-area-inset-top, 0px) + 10px);
+      left: calc(env(safe-area-inset-left, 0px) + 66px);
+      z-index: 6;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .cjtts-bar button{
+      width: 46px;
+      height: 46px;
+      border-radius: 14px;
+      border: 1px solid rgba(148,163,184,0.35);
+      background: rgba(255,255,255,0.10);
+      color: #f8fafc;
+      cursor: pointer;
+      font-size: 1.3rem;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      transition: transform 0.15s ease, opacity 0.15s ease, border-color 0.15s ease;
+    }
+    .cjtts-bar button:hover{ background: rgba(255,255,255,0.18); border-color: rgba(147,197,253,0.55); }
+    .cjtts-bar button:active{ transform: scale(0.92); }
+    .cjtts-bar button.on{
+      border-color: rgba(59,130,246,0.75);
+      box-shadow: 0 0 0 3px rgba(59,130,246,0.18);
+    }
+
+    /* 英文倉頡碼朗讀：喇叭掣同提詞機/查單字同款 SVG；關閉灰、開啟白 */
+    .cjtts-bar #cjTtsSpeakBtn{ color:#64748b; }
+    .cjtts-bar #cjTtsSpeakBtn.on{ color:#ffffff; }
+    .cjtts-bar #cjTtsSpeakBtn svg{ width:26px; height:26px; display:block; }
+    .cjtts-bar #cjTtsSpeakBtn svg *{ stroke: currentColor; fill: currentColor; }
+
+    .cjtts-panel{
+      position: absolute;
+      top: calc(env(safe-area-inset-top, 0px) + 62px);
+      left: calc(env(safe-area-inset-left, 0px) + 10px);
+      right: calc(env(safe-area-inset-right, 0px) + 10px);
+      width: auto;
+      max-width: 360px;
+      z-index: 7;
+      margin: 0;
+      padding: 16px;
+      background:#0b1220;
+      border:1px solid #334155;
+      border-radius:16px;
+      box-shadow: 0 18px 60px rgba(0,0,0,0.55);
+      display:none;
+      max-height: calc(100dvh - (env(safe-area-inset-top, 0px) + 90px) - env(safe-area-inset-bottom, 0px));
+      overflow: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .cjtts-panel.open{ display:block; }
+    .cjtts-panel .tts-rate{ margin-bottom: 10px; }
+
+    /* 修正：手機上 range 放大會壓住倍率數字 */
+    .cjtts-panel .tts-rate input[type="range"]{
+      flex: 1 1 auto;
+      width: auto;
+      transform: none; /* 避免視覺上重疊右邊數字 */
+      min-width: 140px;
+    }
+    .cjtts-panel #cjTtsRateLabel{
+      flex: 0 0 auto;
+      min-width: 5ch;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+
     .typing-display-area{
       width:100%;
       flex: 0 0 auto;
@@ -867,30 +961,77 @@
     ::-webkit-scrollbar { display: none; }
     * { scrollbar-width: none; }
 
+    /* 輕量提示（Toast）：用於「已複製／已清除」 */
+    .toast{
+      position: fixed;
+      left: 50%;
+      bottom: calc(env(safe-area-inset-bottom, 0px) + 18px);
+      transform: translateX(-50%) translateY(8px);
+      background: rgba(15,23,42,0.92);
+      color: #e2e8f0;
+      border: 1px solid rgba(148,163,184,0.35);
+      border-radius: 999px;
+      padding: 10px 14px;
+      z-index: 40000;
+      opacity: 0;
+      transition: opacity 160ms ease, transform 160ms ease;
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      max-width: calc(100vw - 24px);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .toast.show{ opacity: 1; transform: translateX(-50%) translateY(0px); }
+
     .tts-floatbar{ position: fixed; top: calc(env(safe-area-inset-top, 0px) + 10px); right: calc(env(safe-area-inset-right, 0px) + 10px); z-index: 5000; display:flex; gap:8px; align-items:center; transition: transform 0.2s ease; }
     .tts-floatbar button{ width:44px;height:44px; border-radius:14px; border:2px solid #334155; background: rgba(15,23,42,0.92); color:#e2e8f0; font-size:1.25rem; font-weight:900; cursor:pointer; display:flex;align-items:center;justify-content:center; backdrop-filter: blur(6px); }
     .tts-floatbar button:disabled{ opacity: 0.55; cursor: not-allowed; color: #64748b; }
 
     /* 提詞機：全文朗讀喇叭（未輸入前要灰色） */
     #prompterTextSpeakBtn.prompter-speak-btn{
-      background: rgba(255,255,255,0.08);
-      border: 1px solid #334155;
-      color: #e2e8f0;
+      background: transparent !important;
+      border: 0 !important;
+      box-shadow: none !important;
+      color: #ffffff;
       width: 44px;
       height: 44px;
       padding: 0;
-      border-radius: 14px;
+      border-radius: 0;
       font-weight: 900;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
     }
+    /* 強制 SVG 跟隨白色，避免變黑睇唔到 */
+    #prompterTextSpeakBtn svg{ display:block; }
+    #prompterTextSpeakBtn svg *{ stroke: currentColor; fill: currentColor; }
     #prompterTextSpeakBtn.prompter-speak-btn:disabled{
       opacity: 0.55;
       cursor: not-allowed;
       color: #64748b;
     }
+
+    /* 提詞機：一鍵清除輸入（單色掃把；無框透明） */
+    #prompterClearBtn{
+      background: transparent !important;
+      border: 0 !important;
+      box-shadow: none !important;
+      color: #ffffff;
+      width: 44px;
+      height: 44px;
+      padding: 0;
+      border-radius: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+    #prompterClearBtn svg{ width: 28px; height: 28px; display:block; }
+    #prompterClearBtn svg *{ fill: currentColor; stroke: none; }
+    #prompterClearBtn:active{ opacity: 0.85; transform: translateY(1px) scale(0.97); }
+    #prompterClearBtn:disabled{ opacity: 0.55; cursor: not-allowed; color: #64748b; }
 
     /* 提詞機：教學按鈕（燈泡更易見） */
     .prompter-help-btn{
@@ -914,8 +1055,34 @@
       filter: drop-shadow(0 0 10px rgba(250, 204, 21, 0.35));
     }
     .prompter-help-btn:hover{ border-color: #60a5fa; color:#e2e8f0; }
+
+    /* 全螢幕：白色單色圖案，透明底 */
+    .fullscreen-icon-btn{
+      background: transparent !important;
+      border: 0 !important;
+      box-shadow: none !important;
+      color: #ffffff;
+      padding: 6px 8px;
+      border-radius: 0;
+      font-weight: 800;
+      cursor: pointer;
+      font-size: 0.9rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .fullscreen-icon-btn svg{ width: 22px; height: 22px; display:block; }
+    .fullscreen-icon-btn svg *{ fill: currentColor; stroke: none; }
+    .fullscreen-icon-btn:active{ opacity:0.85; transform: translateY(1px) scale(0.97); }
+
+    /* 所有喇叭掣都透明底（包括打字模式左上角） */
+    .cjtts-bar #cjTtsSpeakBtn{
+      background: transparent !important;
+      border: 0 !important;
+      box-shadow: none !important;
+    }
     .tts-floatbar button:hover{ border-color:#60a5fa; }
-    .tts-float-panel{ position: fixed; top: calc(env(safe-area-inset-top, 0px) + 60px); right: calc(env(safe-area-inset-right, 0px) + 10px); width: min(360px, calc(100vw - 20px)); z-index: 5100; margin: 0; padding: 16px; background:#0b1220; border:1px solid #334155; border-radius:16px; box-shadow: 0 18px 60px rgba(0,0,0,0.55); display:none; }
+    .tts-float-panel{ position: fixed; top: calc(env(safe-area-inset-top, 0px) + 60px); right: calc(env(safe-area-inset-right, 0px) + 10px); width: min(360px, calc(100vw - 20px)); z-index: 5100; margin: 0; padding: 16px; background:#0b1220; border:1px solid #334155; border-radius:16px; box-shadow: 0 18px 60px rgba(0,0,0,0.55); display:none; max-height: calc(100dvh - (env(safe-area-inset-top, 0px) + 80px) - env(safe-area-inset-bottom, 0px)); overflow: auto; }
     .tts-float-panel.open{ display:block; }
     .tts-settings-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
     .tts-settings-title{font-weight:900;color:#60a5fa; font-size: 1.4rem;}
@@ -1752,7 +1919,14 @@
       dictHistory: [],
       dictInput: '',
       inputMethod: 'cangjie',
-      showRadical: false,
+      showRadical: true,
+
+      // ===== 英文倉頡碼朗讀（打字模式專用） =====
+      cjTtsEnabled: false,
+      cjTtsRate: 1.0,
+      cjTtsRepeat: 1,
+      cjTtsPanelOpen: false,
+      _cjTtsAutoSpeakPending: false,
       textArray: [],
       textArrayRaw: [],
       textIndexMap: [],
@@ -1777,6 +1951,14 @@ try {
       const hist = JSON.parse(localStorage.getItem('dictHistory_v1')) || [];
       const arr = Array.isArray(hist) ? hist.filter(x => typeof x === 'string') : [];
       state.dictHistory = arr.slice(0, 60);
+    } catch(e) {}
+
+    // 英文倉頡碼朗讀設定（快慢/次數）
+    const CJ_TTS_LS_KEY = 'cj_tts_settings_v1';
+    try {
+      const s = JSON.parse(localStorage.getItem(CJ_TTS_LS_KEY) || '{}') || {};
+      if (typeof s.rate === 'number' && s.rate >= 0.4 && s.rate <= 2.0) state.cjTtsRate = s.rate;
+      if (typeof s.repeat === 'number' && s.repeat >= 1 && s.repeat <= 5) state.cjTtsRepeat = Math.round(s.repeat);
     } catch(e) {}
 
     // 記住上一次查過邊個字（俾同音字預設值用）
@@ -2318,12 +2500,30 @@ try {
     }
 
 
+    function showToast(msg, ms=1200){
+      try {
+        const m = String(msg || '').trim();
+        if (!m) return;
+        const el = document.createElement('div');
+        el.className = 'toast';
+        el.textContent = m;
+        document.body.appendChild(el);
+        requestAnimationFrame(() => { el.classList.add('show'); });
+        clearTimeout(showToast._t);
+        showToast._t = setTimeout(() => {
+          try { el.classList.remove('show'); } catch(e) {}
+          setTimeout(() => { try { el.remove(); } catch(e) {} }, 220);
+        }, ms);
+      } catch(e) {}
+    }
+
     async function copyTextSafe(text) {
       const t = String(text || '');
       if (!t) return false;
       try {
         if (navigator.clipboard && navigator.clipboard.writeText) {
           await navigator.clipboard.writeText(t);
+          try { showToast(`已複製「${t}」`); } catch(e) {}
           return true;
         }
       } catch(e) {}
@@ -2948,6 +3148,115 @@ try {
       }
     }
 
+    // ===== 英文倉頡碼：讀英文字母（打字模式） =====
+    let cjTtsToken = 0;
+
+    function pickEnglishVoice(){
+      try {
+        const voices = (window.speechSynthesis && window.speechSynthesis.getVoices) ? window.speechSynthesis.getVoices() : [];
+        if (!voices || !voices.length) return null;
+        // 優先：en-HK/en-US/en-GB
+        const prefer = voices.find(v => /^en-(HK|US|GB)/i.test(String(v.lang||'')) )
+                 || voices.find(v => /^en/i.test(String(v.lang||'')) )
+                 || null;
+        return prefer;
+      } catch(e){
+        return null;
+      }
+    }
+
+    function formatLettersForSpeech(lettersArr){
+      const arr = (lettersArr||[]).map(x=>String(x||'').trim().toUpperCase()).filter(x=>/^[A-Z]$/.test(x));
+      // 用逗號拉開，讀字母會更清楚
+      return arr.join(', ');
+    }
+
+    async function speakEnglishLettersOnce(lettersText, rate){
+      try {
+        const text = String(lettersText||'').trim();
+        if (!text) return false;
+        if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) return false;
+
+        await waitVoices(700);
+        const voice = pickEnglishVoice();
+
+        const myToken = ++cjTtsToken;
+        try { window.speechSynthesis.cancel(); } catch(e) {}
+
+        return await new Promise((resolve)=>{
+          try {
+            const u = new SpeechSynthesisUtterance(text);
+            if (voice) {
+              u.voice = voice;
+              u.lang = voice.lang || 'en-US';
+            } else {
+              u.lang = 'en-US';
+            }
+            u.rate = (typeof rate === 'number' ? rate : 1.0);
+            u.pitch = 1.0;
+            u.onend = ()=> resolve(myToken === cjTtsToken);
+            u.onerror = ()=> resolve(false);
+            window.speechSynthesis.speak(u);
+          } catch(err){
+            resolve(false);
+          }
+        });
+      } catch(e){
+        return false;
+      }
+    }
+
+    async function speakEnglishLettersRepeat(lettersText, repeat, rate){
+      try {
+        const r = Math.max(1, Math.min(5, Math.round(Number(repeat)||1)));
+        const myToken = ++cjTtsToken;
+        for (let i=0; i<r; i++){
+          if (myToken != cjTtsToken) break;
+          await speakEnglishLettersOnce(lettersText, rate);
+          // 短暫停頓，避免連埋一齊
+          await new Promise(res=>setTimeout(res, 90));
+        }
+        return true;
+      } catch(e){
+        return false;
+      }
+    }
+
+    function canShowCjEnglishTts(charData){
+      try {
+        if (!charData || !Array.isArray(charData.cj)) return false;
+        if (charData.isPunct) return false;
+        const hasLetters = charData.cj.some(x=>/^[A-Za-z]$/.test(String(x||'')));
+        return hasLetters;
+      } catch(e){
+        return false;
+      }
+    }
+
+    async function speakCurrentCjEnglishCode(){
+      try {
+        const arr = state.textArray || [];
+        const idx = state.currentIndex || 0;
+        const ch = String(arr[idx] || '');
+        const cd = ch ? getCharCodes(ch) : null;
+        if (!cd || !canShowCjEnglishTts(cd)) return false;
+        const lettersText = formatLettersForSpeech(cd.cj);
+        if (!lettersText) return false;
+        return await speakEnglishLettersRepeat(lettersText, state.cjTtsRepeat, state.cjTtsRate);
+      } catch(e){
+        return false;
+      }
+    }
+
+    function persistCjTtsSettings(){
+      try {
+        localStorage.setItem('cj_tts_settings_v1', JSON.stringify({
+          rate: state.cjTtsRate,
+          repeat: state.cjTtsRepeat
+        }));
+      } catch(e) {}
+    }
+
     function getStatusBanner() {
       if (dictStatus === 'ready') {
         return ``;
@@ -2994,16 +3303,38 @@ try {
         html += `
           <div class="prompter-area">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;">
-              <button id="prompterTextSpeakBtn" class="prompter-speak-btn" aria-label="朗讀全文" ${text.trim() ? '' : 'disabled'} title="🔊 朗讀全文">
-                <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" style="width:26px;height:26px;">
-                  <path d="M192 192h-80a16 16 0 00-16 16v96a16 16 0 0016 16h80l96 96V128l-96 96z" fill="currentColor"/>
-                  <path d="M384 320c9.74-19.41 16-43.05 16-64 0-20.95-6.26-44.59-16-64" fill="none" stroke="currentColor" stroke-width="32" stroke-linecap="round"/>
-                  <path d="M448 384c18.67-37.34 32-84.41 32-128 0-43.59-13.33-90.66-32-128" fill="none" stroke="currentColor" stroke-width="32" stroke-linecap="round"/>
-                </svg>
-              </button>
+              <div style="display:flex;gap:8px;align-items:center;">
+                <button id="prompterTextSpeakBtn" class="prompter-speak-btn" aria-label="朗讀全文" ${text.trim() ? '' : 'disabled'} title="🔊 朗讀全文">
+                  <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" style="width:26px;height:26px;">
+                    <path d="M192 192h-80a16 16 0 00-16 16v96a16 16 0 0016 16h80l96 96V128l-96 96z" fill="currentColor"/>
+                    <path d="M384 320c9.74-19.41 16-43.05 16-64 0-20.95-6.26-44.59-16-64" fill="none" stroke="currentColor" stroke-width="32" stroke-linecap="round"/>
+                    <path d="M448 384c18.67-37.34 32-84.41 32-128 0-43.59-13.33-90.66-32-128" fill="none" stroke="currentColor" stroke-width="32" stroke-linecap="round"/>
+                  </svg>
+                </button>
+                <button id="prompterClearBtn" class="prompter-speak-btn" aria-label="清除輸入" ${text.trim() ? '' : 'disabled'} title="清除輸入">
+                  <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <g transform="translate(4 2) rotate(-18 32 32)">
+                      <rect x="25" y="4" width="12" height="32" rx="6"/>
+                      <path d="M19 34c2.2-8 21.8-8 24 0l-24 8z"/>
+                      <path d="M17 43h30c-2 9-9 15-18 17H14c2-5 3-11 3-17z"/>
+                      <path d="M26 44l-2 16h6l1-16z" fill="#0b1220" opacity="0.95"/>
+                      <path d="M37 44l7 12 5-4-7-8z" fill="#0b1220" opacity="0.95"/>
+                      <path d="M19 39l24-8 2 5-28 9z" fill="#0b1220" opacity="0.95"/>
+                    </g>
+                  </svg>
+                </button>
+              </div>
               <div style="display:flex;gap:8px;">
                 <button id="replayTourBtn" class="prompter-help-btn" title="重播教學"><span class="help-ic" aria-hidden="true">💡</span><span class="help-txt">教學</span></button>
-                <button id="fullscreenBtn" style="background:rgba(255,255,255,0.08); border:1px solid #334155; color:#cbd5e1; padding:6px 12px; border-radius:12px; font-weight:800; cursor:pointer; font-size:0.9rem;">🔲 全螢幕</button>
+                <button id="fullscreenBtn" class="fullscreen-icon-btn" title="全螢幕" aria-label="全螢幕">
+                  <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M8 24V8h16L18 14l11 11-4 4L14 18z"/>
+                    <path d="M56 24V8H40l6 6-11 11 4 4 11-11z"/>
+                    <path d="M8 40v16h16l-6-6 11-11-4-4-11 11z"/>
+                    <path d="M56 40v16H40l6-6-11-11 4-4 11 11z"/>
+                  </svg>
+                  <span>全螢幕</span>
+                </button>
               </div>
             </div>
             <div style="position:relative;">
@@ -3034,13 +3365,21 @@ try {
           <div class="dict-top">
             <button id="backToPrompter" aria-label="返回">✕</button>
             <div class="dict-title">查單字</div>
-            <button id="dictSpeakBtn" aria-label="聽粵音" ${dictVal?'':'disabled'} title="🔊 聽粵音">
-              <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-                <path d="M192 192h-80a16 16 0 00-16 16v96a16 16 0 0016 16h80l96 96V128l-96 96z" fill="currentColor"/>
-                <path d="M384 320c9.74-19.41 16-43.05 16-64 0-20.95-6.26-44.59-16-64" fill="none" stroke="currentColor" stroke-width="32" stroke-linecap="round"/>
-                <path d="M448 384c18.67-37.34 32-84.41 32-128 0-43.59-13.33-90.66-32-128" fill="none" stroke="currentColor" stroke-width="32" stroke-linecap="round"/>
-              </svg>
-            </button>
+            <div class="dict-top-actions">
+              <button id="dictCopyBtn" aria-label="複製單字" ${dictVal?'':'disabled'} title="📋 複製">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <path d="M16 1H6a2 2 0 0 0-2 2v10h2V3h10V1z" fill="currentColor"/>
+                  <path d="M18 5H10a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z" fill="currentColor"/>
+                </svg>
+              </button>
+              <button id="dictSpeakBtn" aria-label="聽粵音" ${dictVal?'':'disabled'} title="🔊 聽粵音">
+                <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M192 192h-80a16 16 0 00-16 16v96a16 16 0 0016 16h80l96 96V128l-96 96z" fill="currentColor"/>
+                  <path d="M384 320c9.74-19.41 16-43.05 16-64 0-20.95-6.26-44.59-16-64" fill="none" stroke="currentColor" stroke-width="32" stroke-linecap="round"/>
+                  <path d="M448 384c18.67-37.34 32-84.41 32-128 0-43.59-13.33-90.66-32-128" fill="none" stroke="currentColor" stroke-width="32" stroke-linecap="round"/>
+                </svg>
+              </button>
+            </div>
           </div>
           <div class="dict-area">
             <div class="dict-input-row">
@@ -3161,6 +3500,16 @@ try {
         });
       }
 
+      const copyBtn = document.getElementById('dictCopyBtn');
+      if (copyBtn) {
+        copyBtn.addEventListener('click', async (e) => {
+          e.preventDefault();
+          const ch = String(state.dictInput || '').trim();
+          if (!ch) return;
+          await copyTextSafe(ch);
+        });
+      }
+
       const speakBtn = document.getElementById('dictSpeakBtn');
       if (speakBtn) {
         speakBtn.addEventListener('click', async (e) => {
@@ -3222,6 +3571,10 @@ try {
           if (speakBtn) {
             speakBtn.disabled = (String(state.inputText||'').trim().length === 0);
           }
+          const clearBtn = document.getElementById('prompterClearBtn');
+          if (clearBtn) {
+            clearBtn.disabled = (String(state.inputText||'').trim().length === 0);
+          }
           const faux = document.getElementById('fauxPlaceholder');
           if (faux) {
             faux.style.display = state.inputText.length === 0 ? 'flex' : 'none';
@@ -3231,6 +3584,18 @@ try {
           textarea.addEventListener(evt, updateStartBtnState);
         });
         updateStartBtnState();
+
+        const clearBtn = document.getElementById('prompterClearBtn');
+        if (clearBtn) {
+          clearBtn.addEventListener('click', (e)=>{
+            e.preventDefault();
+            textarea.value = '';
+            state.inputText = '';
+            updateStartBtnState();
+            try { textarea.focus(); } catch(err) {}
+            try { showToast && showToast('已清除'); } catch(err) {}
+          });
+        }
       }
 
       const prompterTextSpeakBtn = document.getElementById('prompterTextSpeakBtn');
@@ -3658,11 +4023,13 @@ try {
 
           // 綁定：揀同音字 → 帶去「查字」
           jyResults.querySelectorAll('.jyutping-char-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
+            btn.addEventListener('click', async () => {
               const ch = btn.getAttribute('data-pick');
               if (!ch) return;
               state.dictInput = ch;
               addToDictHistory(ch);
+              // 同時複製，方便即刻貼出嚟
+              try { await copyTextSafe(ch); } catch(e) {}
               try { window.__closeJyutpingPanel && window.__closeJyutpingPanel(); } catch(e) {}
               render();
             });
@@ -3765,12 +4132,14 @@ try {
       }
 
       document.querySelectorAll('[data-dict-pick]').forEach(btn => {
-        btn.addEventListener('click', (e) => {
+        btn.addEventListener('click', async (e) => {
           e.preventDefault();
           const ch = String(btn.getAttribute('data-dict-pick') || '').trim();
           if (!ch) return;
           state.dictInput = Array.from(ch)[0];
           addToDictHistory(state.dictInput);
+          // 同時複製，方便即刻貼出嚟
+          try { await copyTextSafe(state.dictInput); } catch(err) {}
           render();
           // 重要：揀「歷史單字」唔應該彈出輸入法；
           // 只係用家直接撳輸入格 (#dictInput) 先 focus。
@@ -4005,8 +4374,38 @@ try {
       const hintLetters = (charData ? (method === 'quick' ? (charData.q || []) : (charData.cj || [])) : []);
       const hintKbdHtml = renderHintKeyboardHtml(hintLetters, method === 'quick', showRad);
 
-      // ===== 提詞機：喇叭已移除（打字模式只讀單字，唔符合需求） =====
-      let ttsBarHtml = ``;
+      // ===== 提詞機（打字模式）：英文倉頡碼朗讀（只喺：倉頡 + 英文） =====
+      const showCjEngTts = (method === 'cangjie' && !showRad && canShowCjEnglishTts(charData));
+      let ttsBarHtml = showCjEngTts ? `
+        <div class="cjtts-bar" id="cjTtsBar">
+          <button id="cjTtsSpeakBtn" class="${state.cjTtsEnabled ? 'on' : ''}" aria-label="讀英文字母" title="讀英文字母（自動）">
+            <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M192 192h-80a16 16 0 00-16 16v96a16 16 0 0016 16h80l96 96V128l-96 96z" fill="currentColor"/>
+              <path d="M384 320c9.74-19.41 16-43.05 16-64 0-20.95-6.26-44.59-16-64" fill="none" stroke="currentColor" stroke-width="32" stroke-linecap="round"/>
+              <path d="M448 384c18.67-37.34 32-84.41 32-128 0-43.59-13.33-90.66-32-128" fill="none" stroke="currentColor" stroke-width="32" stroke-linecap="round"/>
+            </svg>
+          </button>
+          <button id="cjTtsGearBtn" aria-label="朗讀設定" title="朗讀設定">⚙</button>
+        </div>
+        <div class="cjtts-panel ${state.cjTtsPanelOpen ? 'open' : ''}" id="cjTtsPanel" aria-label="英文倉頡碼朗讀設定">
+          <div class="tts-settings-head">
+            <div class="tts-settings-title">英文倉頡碼朗讀</div>
+            <button class="tts-settings-close" id="cjTtsClose" aria-label="關閉">✕</button>
+          </div>
+          <div class="tts-rate">
+            <span>快慢</span>
+            <input id="cjTtsRate" type="range" min="0.6" max="1.4" step="0.05" value="${Number(state.cjTtsRate || 1).toFixed(2)}">
+            <span id="cjTtsRateLabel">${Number(state.cjTtsRate || 1).toFixed(2)}×</span>
+          </div>
+          <div class="tts-rate">
+            <span>次數</span>
+            <select id="cjTtsRepeat">
+              ${[1,2,3,4,5].map(n=>`<option value="${n}" ${Number(state.cjTtsRepeat||1)===n?'selected':''}>${n} 次</option>`).join('')}
+            </select>
+          </div>
+          <div class="tts-hint">提示：開咗「🔊」之後，每次翻頁/撳畫面都會自動讀。</div>
+        </div>
+      ` : ``;
 
       let dialogHtml = '';
       if (state.showSaveDialog) {
@@ -4066,6 +4465,65 @@ try {
 
       root.innerHTML = html;
 
+      // 英文倉頡碼朗讀：綁定 UI
+      if (showCjEngTts) {
+        const speakBtn = document.getElementById('cjTtsSpeakBtn');
+        const gearBtn = document.getElementById('cjTtsGearBtn');
+        const panel = document.getElementById('cjTtsPanel');
+        const closeBtn = document.getElementById('cjTtsClose');
+        const rateEl = document.getElementById('cjTtsRate');
+        const rateLabel = document.getElementById('cjTtsRateLabel');
+        const repeatEl = document.getElementById('cjTtsRepeat');
+
+        const togglePanel = (open)=>{
+          state.cjTtsPanelOpen = (typeof open === 'boolean') ? open : !state.cjTtsPanelOpen;
+          render();
+        };
+
+        speakBtn?.addEventListener('click', async (e)=>{
+          e.preventDefault(); e.stopPropagation();
+          state.cjTtsEnabled = !state.cjTtsEnabled;
+          if (!state.cjTtsEnabled) {
+            try { window.speechSynthesis && window.speechSynthesis.cancel && window.speechSynthesis.cancel(); } catch(err) {}
+          }
+          // 開啟時即刻讀一次，之後翻頁會自動讀
+          state._cjTtsAutoSpeakPending = state.cjTtsEnabled;
+          render();
+        });
+
+        gearBtn?.addEventListener('click', (e)=>{
+          e.preventDefault(); e.stopPropagation();
+          togglePanel();
+        });
+
+        closeBtn?.addEventListener('click', (e)=>{
+          e.preventDefault(); e.stopPropagation();
+          togglePanel(false);
+        });
+
+        rateEl?.addEventListener('input', (e)=>{
+          const v = Number(e.target.value);
+          if (!isNaN(v)) state.cjTtsRate = v;
+          if (rateLabel) rateLabel.textContent = (Number(state.cjTtsRate||1).toFixed(2) + '×');
+        });
+        rateEl?.addEventListener('change', ()=>{ persistCjTtsSettings(); });
+
+        repeatEl?.addEventListener('change', (e)=>{
+          const v = Math.round(Number(e.target.value)||1);
+          state.cjTtsRepeat = Math.max(1, Math.min(5, v));
+          persistCjTtsSettings();
+        });
+
+        // 點擊面板外：關閉（但唔阻導覽）
+        panel?.addEventListener('click', (e)=>{ e.stopPropagation(); });
+      }
+
+      // 英文倉頡碼朗讀：如果需要自動讀，就喺 render 後執行
+      if (showCjEngTts && state.cjTtsEnabled && state._cjTtsAutoSpeakPending) {
+        state._cjTtsAutoSpeakPending = false;
+        setTimeout(()=>{ speakCurrentCjEnglishCode(); }, 0);
+      }
+
       const hkBtn = document.getElementById('hintKbdToggle');
       if (hkBtn) {
         hkBtn.addEventListener('click', (e) => {
@@ -4093,7 +4551,12 @@ try {
       function toggleMethodAndRad(methodKey){
         if (state.inputMethod !== methodKey) { state.inputMethod = methodKey; render(); return; }
         state.showRadical = !state.showRadical;
-        if (state.showRadical) stopSpeaking();
+        if (state.showRadical) {
+          stopSpeaking();
+        } else {
+          // 切到「英文」時，如果已開啟自動朗讀，就即刻讀一次
+          if (state.cjTtsEnabled && state.inputMethod === 'cangjie') state._cjTtsAutoSpeakPending = true;
+        }
         render();
       }
 
@@ -4134,7 +4597,8 @@ try {
     function goNext() {
       if (state.currentIndex < state.textArray.length - 1) { 
         state.currentIndex++; 
-        state.showSaveDialog = false; 
+        state.showSaveDialog = false;
+        if (state.cjTtsEnabled) state._cjTtsAutoSpeakPending = true;
         render();
       } else { 
         state.hintKbdOn = false;
@@ -4143,7 +4607,12 @@ try {
       }
     }
     function goPrev() {
-      if (state.currentIndex > 0) { state.currentIndex--; state.showSaveDialog = false; render(); }
+      if (state.currentIndex > 0) {
+        state.currentIndex--;
+        state.showSaveDialog = false;
+        if (state.cjTtsEnabled) state._cjTtsAutoSpeakPending = true;
+        render();
+      }
     }
     function exitTyping(skipHistory=false) {
       if (!skipHistory && state._typingHistoryPushed && location.hash === '#typing') {
