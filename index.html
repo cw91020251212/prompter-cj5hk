@@ -658,42 +658,47 @@
     }
     .typing-exit:hover{ background: rgba(255,255,255,0.18); border-color: rgba(147,197,253,0.55); }
 
-    /* ===== 提詞機（打字模式）：英文倉頡碼朗讀（喇叭＋齒輪） ===== */
-    .cjtts-bar{
+    /* ===== 提詞機（打字模式）：朗讀控制（左英／中間齒輪／右中；每次只顯示一個喇叭） ===== */
+    .typing-ttsbar{
       position: absolute;
       top: calc(env(safe-area-inset-top, 0px) + 10px);
-      left: calc(env(safe-area-inset-left, 0px) + 66px);
+      left: 50%;
+      transform: translateX(-50%);
       z-index: 6;
-      display: flex;
-      gap: 8px;
+      display: grid;
+      grid-template-columns: 46px 46px 46px;
+      column-gap: 22px;
       align-items: center;
+      justify-content: center;
+      pointer-events: none;
     }
-    .cjtts-bar button{
+    .typing-ttsbar .tts-ic-btn{
       width: 46px;
       height: 46px;
-      border-radius: 14px;
-      border: 1px solid rgba(148,163,184,0.35);
-      background: rgba(255,255,255,0.10);
-      color: #f8fafc;
+      border-radius: 0;
+      border: 0 !important;
+      background: transparent !important;
+      box-shadow: none !important;
+      color: #64748b;
       cursor: pointer;
       font-size: 1.3rem;
+      padding: 0;
       display:flex;
       align-items:center;
       justify-content:center;
-      transition: transform 0.15s ease, opacity 0.15s ease, border-color 0.15s ease;
+      transition: transform 0.15s ease, opacity 0.15s ease, color 0.15s ease;
+      pointer-events: auto;
     }
-    .cjtts-bar button:hover{ background: rgba(255,255,255,0.18); border-color: rgba(147,197,253,0.55); }
-    .cjtts-bar button:active{ transform: scale(0.92); }
-    .cjtts-bar button.on{
-      border-color: rgba(59,130,246,0.75);
-      box-shadow: 0 0 0 3px rgba(59,130,246,0.18);
+    .typing-ttsbar .tts-ic-btn.on{ color:#ffffff; }
+    .typing-ttsbar .tts-ic-btn.gear{ color:#94a3b8 !important; opacity:0.92; }
+    .typing-ttsbar .tts-ic-btn.gear:disabled{ opacity:0.45; cursor: default; }
+    .typing-ttsbar .tts-ic-btn.is-hidden{
+      visibility: hidden;
+      pointer-events: none;
     }
-
-    /* 英文倉頡碼朗讀：喇叭掣同提詞機/查單字同款 SVG；關閉灰、開啟白 */
-    .cjtts-bar #cjTtsSpeakBtn{ color:#64748b; }
-    .cjtts-bar #cjTtsSpeakBtn.on{ color:#ffffff; }
-    .cjtts-bar #cjTtsSpeakBtn svg{ width:26px; height:26px; display:block; }
-    .cjtts-bar #cjTtsSpeakBtn svg *{ stroke: currentColor; fill: currentColor; }
+    .typing-ttsbar .tts-ic-btn svg{ width:26px; height:26px; display:block; }
+    .typing-ttsbar .tts-ic-btn svg *{ stroke: currentColor; fill: currentColor; }
+    .typing-ttsbar .tts-ic-btn:active{ opacity: 0.85; transform: translateY(1px) scale(0.97); }
 
     .cjtts-panel{
       position: absolute;
@@ -1075,8 +1080,8 @@
     .fullscreen-icon-btn svg *{ fill: currentColor; stroke: none; }
     .fullscreen-icon-btn:active{ opacity:0.85; transform: translateY(1px) scale(0.97); }
 
-    /* 所有喇叭掣都透明底（包括打字模式左上角） */
-    .cjtts-bar #cjTtsSpeakBtn{
+    /* 所有喇叭掣都透明底（包括打字模式） */
+    .typing-ttsbar .tts-ic-btn{
       background: transparent !important;
       border: 0 !important;
       box-shadow: none !important;
@@ -1927,12 +1932,20 @@
       cjTtsRepeat: 1,
       cjTtsPanelOpen: false,
       _cjTtsAutoSpeakPending: false,
+
+      // ===== 提詞機（打字模式）：中文單字朗讀（自動／可關） =====
+      typingSpeakEnabled: false,
+      _typingSpeakPending: false,
+
       textArray: [],
       textArrayRaw: [],
       textIndexMap: [],
       contextWindowSize: 0,
       _typingHistoryPushed: false,
       _dictHistoryPushed: false,
+      _jyReopenQuery: '',
+      _jyReopenSource: '',
+      _jySuppressHistory: false,
       hintKbdOn: false,
       relWordsOpen: false,
       charExtraOpen: false,
@@ -2621,6 +2634,21 @@ try {
       try { view = (e && e.state && e.state.view) ? String(e.state.view) : ''; } catch(err) {}
       const h = String(location.hash || '');
 
+      // 返回近音字表格：由「揀咗某個近音字」返回時，重開原本表格
+      if (view === 'dict-jy-panel' || h === '#dict-jy') {
+        state._dictHistoryPushed = true;
+        state.activeTab = 'dict';
+        try { state.dictInput = String((e && e.state && e.state.source) || state.dictInput || ''); } catch(err) {}
+        try { state._jyReopenQuery = String((e && e.state && e.state.jyQuery) || state.dictInput || ''); } catch(err) { state._jyReopenQuery = state.dictInput || ''; }
+        try { state._jyReopenSource = String((e && e.state && e.state.source) || state.dictInput || ''); } catch(err) { state._jyReopenSource = state.dictInput || ''; }
+        state._jySuppressHistory = true;
+        render();
+        setTimeout(() => {
+          try { window.__openJyutpingPanelWithQuery && window.__openJyutpingPanelWithQuery(state._jyReopenQuery, { suppressHistory:true, source: state._jyReopenSource }); } catch(err) {}
+        }, 0);
+        return;
+      }
+
       // 前進／回到 dict
       if (view === 'dict' || h === '#dict') {
         state._dictHistoryPushed = true;
@@ -3039,26 +3067,53 @@ try {
       });
     }
 
-    async function speakCantoneseChar(ch){
+    async function speakCantoneseChar(ch, opts={}){
       try {
         ch = String(ch||'').trim();
         if (!ch) return false;
         if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) return false;
         await waitVoices(700);
         const voice = pickCantoneseVoice();
-        // 如果搵唔到廣東話語音，都嘗試用預設語音播，避免完全無聲
-        const u = new SpeechSynthesisUtterance(ch);
-        if (voice) {
-          u.voice = voice;
-          u.lang = voice.lang || 'zh-HK';
-        } else {
-          u.lang = 'zh-HK';
-        }
-        stopSpeaking();
+        const token = opts.token;
+        const rate = (typeof opts.rate === 'number') ? opts.rate : 0.9;
+        const shouldCancel = opts.cancel !== false;
+        if (shouldCancel) stopSpeaking();
 
-        u.rate = 0.9;
-        u.pitch = 1.0;
-        window.speechSynthesis.speak(u);
+        return await new Promise((resolve)=>{
+          try {
+            // 如果搵唔到廣東話語音，都嘗試用預設語音播，避免完全無聲
+            const u = new SpeechSynthesisUtterance(ch);
+            if (voice) {
+              u.voice = voice;
+              u.lang = voice.lang || 'zh-HK';
+            } else {
+              u.lang = 'zh-HK';
+            }
+            u.rate = rate;
+            u.pitch = 1.0;
+            u.onend = () => resolve(token == null || token === ttsToken);
+            u.onerror = () => resolve(false);
+            window.speechSynthesis.speak(u);
+          } catch(err){ resolve(false); }
+        });
+      } catch(e){
+        return false;
+      }
+    }
+
+    async function speakCantoneseCharRepeat(ch, repeat, rate){
+      try {
+        ch = String(ch||'').trim();
+        if (!ch) return false;
+        const r = Math.max(1, Math.min(5, Math.round(Number(repeat)||1)));
+        const myToken = ++ttsToken;
+        try { window.speechSynthesis && window.speechSynthesis.cancel(); } catch(e) {}
+        const rr = (typeof rate === 'number') ? Math.max(0.6, Math.min(1.4, rate)) : 0.9;
+        for (let i=0; i<r; i++){
+          if (myToken !== ttsToken) break;
+          await speakCantoneseChar(ch, { token: myToken, rate: rr, cancel:false });
+          if (i < r-1) await new Promise(res=>setTimeout(res, 120));
+        }
         return true;
       } catch(e){
         return false;
@@ -3171,7 +3226,7 @@ try {
       return arr.join(', ');
     }
 
-    async function speakEnglishLettersOnce(lettersText, rate){
+    async function speakEnglishLettersOnce(lettersText, rate, opts={}){
       try {
         const text = String(lettersText||'').trim();
         if (!text) return false;
@@ -3179,9 +3234,12 @@ try {
 
         await waitVoices(700);
         const voice = pickEnglishVoice();
-
-        const myToken = ++cjTtsToken;
-        try { window.speechSynthesis.cancel(); } catch(e) {}
+        const token = opts.token;
+        const shouldCancel = opts.cancel !== false;
+        if (shouldCancel) {
+          cjTtsToken++;
+          try { window.speechSynthesis.cancel(); } catch(e) {}
+        }
 
         return await new Promise((resolve)=>{
           try {
@@ -3194,7 +3252,7 @@ try {
             }
             u.rate = (typeof rate === 'number' ? rate : 1.0);
             u.pitch = 1.0;
-            u.onend = ()=> resolve(myToken === cjTtsToken);
+            u.onend = ()=> resolve(token == null || token === cjTtsToken);
             u.onerror = ()=> resolve(false);
             window.speechSynthesis.speak(u);
           } catch(err){
@@ -3210,11 +3268,12 @@ try {
       try {
         const r = Math.max(1, Math.min(5, Math.round(Number(repeat)||1)));
         const myToken = ++cjTtsToken;
+        try { window.speechSynthesis && window.speechSynthesis.cancel(); } catch(e) {}
         for (let i=0; i<r; i++){
-          if (myToken != cjTtsToken) break;
-          await speakEnglishLettersOnce(lettersText, rate);
+          if (myToken !== cjTtsToken) break;
+          await speakEnglishLettersOnce(lettersText, rate, { token: myToken, cancel:false });
           // 短暫停頓，避免連埋一齊
-          await new Promise(res=>setTimeout(res, 90));
+          if (i < r-1) await new Promise(res=>setTimeout(res, 120));
         }
         return true;
       } catch(e){
@@ -3738,40 +3797,52 @@ try {
             window.__closeJyutpingPanel && window.__closeJyutpingPanel();
           }
         } catch(e) {}
+        async function openJyPanelWithQuery(forceQuery='', opts={}) {
+          try {
+            // 先即時清空結果，避免見到上一次殘留內容（即使只係一瞬）
+            try { if (jyResults) jyResults.innerHTML = '<div class="jyutping-empty">輸入中文開始查詢</div>'; } catch(e) {}
+
+            jyPanel.classList.add('open');
+            if (jyBackdrop) jyBackdrop.classList.add('open');
+            if (jyFab) jyFab.style.display = 'none';
+
+            let fallback = '';
+            if (jyInput) {
+              jyInput.value = '';
+              let protagonist = '';
+              try {
+                const el = document.getElementById('dictInput');
+                protagonist = String(el && el.value ? el.value : '').trim();
+              } catch(e) { protagonist = ''; }
+              fallback = String(forceQuery || protagonist || opts.source || state.dictInput || state.lastDictChar || (Array.isArray(state.dictHistory) ? state.dictHistory[0] : '') || '').trim();
+              if (fallback) jyInput.value = fallback;
+              jyInput.focus();
+            }
+
+            // 開近音面板時建立一層歷史；之後揀字，再 Back 就會返嚟呢層
+            try {
+              if (!opts.suppressHistory && !state._jySuppressHistory && location.hash !== '#dict-jy') {
+                history.pushState({ view:'dict-jy-panel', jyQuery: fallback, source: (opts.source || state.dictInput || fallback || '') }, '', '#dict-jy');
+              }
+            } catch(e) {}
+            state._jySuppressHistory = false;
+
+            if (!jyutpingLoaded) {
+              jyResults.innerHTML = '<div class="jyutping-empty">正在載入同音字資料…</div>';
+              await loadJyutpingDict();
+            }
+            try { window.__homophoneLastOpenTs = Date.now(); } catch(e) {}
+            try { window.__performJyHomophoneSearch && window.__performJyHomophoneSearch(); } catch(e) {}
+          } catch(e) {
+            console.error('[Homophone] open panel failed', e);
+          }
+        }
+        window.__openJyutpingPanelWithQuery = openJyPanelWithQuery;
+
         if (!jyFab.dataset.bound) {
           jyFab.dataset.bound = '1';
           jyFab.addEventListener('click', async () => {
-            try {
-              // 先即時清空結果，避免見到上一次殘留內容（即使只係一瞬）
-              try { if (jyResults) jyResults.innerHTML = '<div class="jyutping-empty">輸入中文開始查詢</div>'; } catch(e) {}
-
-              jyPanel.classList.add('open');
-              if (jyBackdrop) jyBackdrop.classList.add('open');
-              if (jyFab) jyFab.style.display = 'none';
-              if (jyInput) {
-                // 方案 B：每次打開都以『主角字』為預設；同時唔保留上次面板輸入
-                jyInput.value = '';
-                // 首選一定跟「查單字」上面嗰個大格（dictInput）目前顯示嘅字。
-                // 用 DOM 讀一次，避免 state/畫面唔同步時攞錯。
-                let protagonist = '';
-                try {
-                  const el = document.getElementById('dictInput');
-                  protagonist = String(el && el.value ? el.value : '').trim();
-                } catch(e) { protagonist = ''; }
-
-                const fallback = protagonist || state.dictInput || state.lastDictChar || (Array.isArray(state.dictHistory) ? state.dictHistory[0] : '');
-                if (fallback) jyInput.value = String(fallback);
-                jyInput.focus();
-              }
-              if (!jyutpingLoaded) {
-                jyResults.innerHTML = '<div class="jyutping-empty">正在載入同音字資料…</div>';
-                await loadJyutpingDict();
-              }
-              try { window.__homophoneLastOpenTs = Date.now(); } catch(e) {}
-              try { window.__performJyHomophoneSearch && window.__performJyHomophoneSearch(); } catch(e) {}
-            } catch(e) {
-              console.error('[Homophone] open panel failed', e);
-            }
+            await openJyPanelWithQuery('', { suppressHistory:false });
           });
         }
       }
@@ -4021,11 +4092,15 @@ try {
             `;
           }).join('');
 
-          // 綁定：揀同音字 → 帶去「查字」
+          // 綁定：揀同音字 → 帶去「查字」；Back 可返返呢個近音表格
           jyResults.querySelectorAll('.jyutping-char-btn').forEach(btn => {
             btn.addEventListener('click', async () => {
               const ch = btn.getAttribute('data-pick');
               if (!ch) return;
+              let q = '';
+              try { q = String(jyInput && jyInput.value ? jyInput.value : '').trim(); } catch(e) {}
+              const source = q || state.dictInput || ch;
+              try { history.pushState({ view:'dict-jy-picked', jyQuery:q, source, picked:ch }, '', '#dict-jy-picked'); } catch(e) {}
               state.dictInput = ch;
               addToDictHistory(ch);
               // 同時複製，方便即刻貼出嚟
@@ -4374,38 +4449,55 @@ try {
       const hintLetters = (charData ? (method === 'quick' ? (charData.q || []) : (charData.cj || [])) : []);
       const hintKbdHtml = renderHintKeyboardHtml(hintLetters, method === 'quick', showRad);
 
-      // ===== 提詞機（打字模式）：英文倉頡碼朗讀（只喺：倉頡 + 英文） =====
+      // ===== 提詞機（打字模式）：朗讀（只顯示 1 個喇叭） =====
+      // - 英文倉頡碼（倉頡 + 英文）→ 顯示「英文喇叭」（左）
+      // - 其他情況 → 顯示「中文喇叭」（右）
       const showCjEngTts = (method === 'cangjie' && !showRad && canShowCjEnglishTts(charData));
-      let ttsBarHtml = showCjEngTts ? `
-        <div class="cjtts-bar" id="cjTtsBar">
-          <button id="cjTtsSpeakBtn" class="${state.cjTtsEnabled ? 'on' : ''}" aria-label="讀英文字母" title="讀英文字母（自動）">
+
+      // 互斥：避免兩邊同時開
+      if (showCjEngTts && state.typingSpeakEnabled) { state.typingSpeakEnabled = false; state._typingSpeakPending = false; }
+      if (!showCjEngTts && state.cjTtsEnabled) { state.cjTtsEnabled = false; state._cjTtsAutoSpeakPending = false; }
+
+      let ttsBarHtml = `
+        <div class="typing-ttsbar" id="typingTtsBar" aria-label="朗讀控制">
+          <button id="cjTtsSpeakBtn" class="tts-ic-btn ${state.cjTtsEnabled ? 'on' : ''} ${showCjEngTts ? '' : 'is-hidden'}" aria-label="讀英文字母（自動）" title="讀英文字母（自動）" ${showCjEngTts ? '' : 'disabled'}>
             <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
               <path d="M192 192h-80a16 16 0 00-16 16v96a16 16 0 0016 16h80l96 96V128l-96 96z" fill="currentColor"/>
               <path d="M384 320c9.74-19.41 16-43.05 16-64 0-20.95-6.26-44.59-16-64" fill="none" stroke="currentColor" stroke-width="32" stroke-linecap="round"/>
               <path d="M448 384c18.67-37.34 32-84.41 32-128 0-43.59-13.33-90.66-32-128" fill="none" stroke="currentColor" stroke-width="32" stroke-linecap="round"/>
             </svg>
           </button>
-          <button id="cjTtsGearBtn" aria-label="朗讀設定" title="朗讀設定">⚙</button>
+
+          <button id="cjTtsGearBtn" class="tts-ic-btn gear" aria-label="朗讀設定" title="朗讀設定">⚙</button>
+
+          <button id="typingSpeakBtn" class="tts-ic-btn ${state.typingSpeakEnabled ? 'on' : ''} ${showCjEngTts ? 'is-hidden' : ''}" aria-label="讀中文（自動）" title="讀中文（自動）" ${showCjEngTts ? 'disabled' : ''}>
+            <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M192 192h-80a16 16 0 00-16 16v96a16 16 0 0016 16h80l96 96V128l-96 96z" fill="currentColor"/>
+              <path d="M384 320c9.74-19.41 16-43.05 16-64 0-20.95-6.26-44.59-16-64" fill="none" stroke="currentColor" stroke-width="32" stroke-linecap="round"/>
+              <path d="M448 384c18.67-37.34 32-84.41 32-128 0-43.59-13.33-90.66-32-128" fill="none" stroke="currentColor" stroke-width="32" stroke-linecap="round"/>
+            </svg>
+          </button>
         </div>
-        <div class="cjtts-panel ${state.cjTtsPanelOpen ? 'open' : ''}" id="cjTtsPanel" aria-label="英文倉頡碼朗讀設定">
+
+        <div class="cjtts-panel ${state.cjTtsPanelOpen ? 'open' : ''}" id="cjTtsPanel" aria-label="朗讀設定">
           <div class="tts-settings-head">
-            <div class="tts-settings-title">英文倉頡碼朗讀</div>
-            <button class="tts-settings-close" id="cjTtsClose" aria-label="關閉">✕</button>
-          </div>
-          <div class="tts-rate">
-            <span>快慢</span>
-            <input id="cjTtsRate" type="range" min="0.6" max="1.4" step="0.05" value="${Number(state.cjTtsRate || 1).toFixed(2)}">
-            <span id="cjTtsRateLabel">${Number(state.cjTtsRate || 1).toFixed(2)}×</span>
-          </div>
-          <div class="tts-rate">
-            <span>次數</span>
-            <select id="cjTtsRepeat">
-              ${[1,2,3,4,5].map(n=>`<option value="${n}" ${Number(state.cjTtsRepeat||1)===n?'selected':''}>${n} 次</option>`).join('')}
-            </select>
-          </div>
-          <div class="tts-hint">提示：開咗「🔊」之後，每次翻頁/撳畫面都會自動讀。</div>
+            <div class="tts-settings-title">朗讀設定</div>
+              <button class="tts-settings-close" id="cjTtsClose" aria-label="關閉">✕</button>
+            </div>
+            <div class="tts-rate">
+              <span>快慢</span>
+              <input id="cjTtsRate" type="range" min="0.6" max="1.4" step="0.05" value="${Number(state.cjTtsRate || 1).toFixed(2)}">
+              <span id="cjTtsRateLabel">${Number(state.cjTtsRate || 1).toFixed(2)}×</span>
+            </div>
+            <div class="tts-rate">
+              <span>次數</span>
+              <select id="cjTtsRepeat">
+                ${[1,2,3,4,5].map(n=>`<option value="${n}" ${Number(state.cjTtsRepeat||1)===n?'selected':''}>${n} 次</option>`).join('')}
+              </select>
+            </div>
+            <div class="tts-hint">提示：開咗「🔊」之後，每次翻頁/撳畫面都會自動讀。</div>
         </div>
-      ` : ``;
+      `;
 
       let dialogHtml = '';
       if (state.showSaveDialog) {
@@ -4465,8 +4557,8 @@ try {
 
       root.innerHTML = html;
 
-      // 英文倉頡碼朗讀：綁定 UI
-      if (showCjEngTts) {
+      // 朗讀設定：綁定 UI（齒輪任何模式都可撳）
+      {
         const speakBtn = document.getElementById('cjTtsSpeakBtn');
         const gearBtn = document.getElementById('cjTtsGearBtn');
         const panel = document.getElementById('cjTtsPanel');
@@ -4518,10 +4610,32 @@ try {
         panel?.addEventListener('click', (e)=>{ e.stopPropagation(); });
       }
 
+      // 提詞機（打字模式）：中文朗讀喇叭
+      const typingSpeakBtn = document.getElementById('typingSpeakBtn');
+      if (typingSpeakBtn) {
+        typingSpeakBtn.addEventListener('click', async (e)=>{
+          e.preventDefault(); e.stopPropagation();
+          state.typingSpeakEnabled = !state.typingSpeakEnabled;
+          if (!state.typingSpeakEnabled) {
+            try { stopSpeaking(); } catch(err) {}
+          }
+          // 開啟時即刻讀一次
+          state._typingSpeakPending = state.typingSpeakEnabled;
+          render();
+        });
+      }
+
       // 英文倉頡碼朗讀：如果需要自動讀，就喺 render 後執行
       if (showCjEngTts && state.cjTtsEnabled && state._cjTtsAutoSpeakPending) {
         state._cjTtsAutoSpeakPending = false;
         setTimeout(()=>{ speakCurrentCjEnglishCode(); }, 0);
+      }
+
+      // 中文朗讀：如果需要自動讀，就喺 render 後執行
+      if (state.typingSpeakEnabled && state._typingSpeakPending) {
+        state._typingSpeakPending = false;
+        const ch = (state.textArray && state.textArray[state.currentIndex]) ? String(state.textArray[state.currentIndex]) : '';
+        setTimeout(()=>{ speakCantoneseCharRepeat(ch, state.cjTtsRepeat, Math.min(1.4, Math.max(0.6, Number(state.cjTtsRate||1) * 0.9))); }, 0);
       }
 
       const hkBtn = document.getElementById('hintKbdToggle');
@@ -4599,6 +4713,7 @@ try {
         state.currentIndex++; 
         state.showSaveDialog = false;
         if (state.cjTtsEnabled) state._cjTtsAutoSpeakPending = true;
+        if (state.typingSpeakEnabled) state._typingSpeakPending = true;
         render();
       } else { 
         state.hintKbdOn = false;
@@ -4611,6 +4726,7 @@ try {
         state.currentIndex--;
         state.showSaveDialog = false;
         if (state.cjTtsEnabled) state._cjTtsAutoSpeakPending = true;
+        if (state.typingSpeakEnabled) state._typingSpeakPending = true;
         render();
       }
     }
