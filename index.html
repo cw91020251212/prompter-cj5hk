@@ -31,10 +31,10 @@
       margin: 0;
     }
     .app {
-      width: 100vw;
-      max-width: 100vw;
-      height: 100vh;
-      max-height: 100vh;
+      width: 100%;
+      max-width: 100%;
+      height: 100%;
+      max-height: 100%;
       background: #1e293b;
       border-radius: 0;
       border: 0;
@@ -46,6 +46,10 @@
       padding-top: calc(env(safe-area-inset-top, 0px) + 8px);
       padding-left: env(safe-area-inset-left, 0px);
       padding-right: env(safe-area-inset-right, 0px);
+    }
+    /* 窄螢幕：維持原有 100vw/100vh */
+    @media (max-width: 767px) {
+      .app { width: 100vw; max-width: 100vw; height: 100vh; max-height: 100vh; }
     }
     body.softkbd-open .content { padding-bottom: calc(20px + var(--softkbd-height)); }
     body.softkbd-open .typing-footer { padding-bottom: calc(10px + var(--softkbd-height)); }
@@ -1128,10 +1132,255 @@
     /* 另外提高少少易讀度（唔係加粗）： */
     body{ text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }
 
+    /* =====================================================================
+       響應式雙欄佈局（寬螢幕 ≥ 768px）
+       左欄：提詞機   右欄：查單字
+       窄螢幕：維持原有單欄 + 底部 Tab 切換
+    ===================================================================== */
+
+    /* 寬螢幕：body 改為 row 佈局 */
+    @media (min-width: 768px) {
+      body {
+        flex-direction: row;
+        align-items: stretch;
+        overflow: hidden;
+        height: 100vh;
+      }
+
+      /* 雙欄容器 */
+      .split-layout {
+        display: flex;
+        flex-direction: row;
+        width: 100vw;
+        height: 100vh;
+        overflow: hidden;
+      }
+
+      /* 左欄（提詞機） */
+      .split-pane-left {
+        flex: 0 0 auto;
+        width: var(--split-left-w, 50%);
+        min-width: 280px;
+        max-width: calc(100vw - 280px);
+        height: 100vh;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        background: #1e293b;
+        position: relative;
+      }
+
+      /* 拖動分隔線 */
+      .split-divider {
+        flex: 0 0 6px;
+        width: 6px;
+        height: 100vh;
+        background: #334155;
+        cursor: col-resize;
+        position: relative;
+        z-index: 100;
+        transition: background 0.15s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        user-select: none;
+      }
+      .split-divider:hover,
+      .split-divider.dragging {
+        background: #3b82f6;
+      }
+      .split-divider::after {
+        content: '';
+        display: block;
+        width: 2px;
+        height: 40px;
+        border-radius: 2px;
+        background: rgba(148,163,184,0.45);
+      }
+
+      /* 右欄（查單字） */
+      .split-pane-right {
+        flex: 1 1 0;
+        min-width: 280px;
+        height: 100vh;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        background: linear-gradient(180deg, #0b2a27 0%, #071a18 100%);
+        position: relative;
+      }
+
+      /* 寬螢幕：左欄 .app 填滿 */
+      .split-pane-left .app {
+        width: 100%;
+        max-width: 100%;
+        height: 100vh;
+        max-height: 100vh;
+        border-radius: 0;
+      }
+
+      /* 寬螢幕：右欄 .app 填滿，且永遠用 dict 主題 */
+      .split-pane-right .app {
+        width: 100%;
+        max-width: 100%;
+        height: 100vh;
+        max-height: 100vh;
+        border-radius: 0;
+        background: linear-gradient(180deg, var(--dict-bg, #0b2a27) 0%, var(--dict-bg2, #071a18) 100%);
+        color: var(--dict-text, #eafff8);
+      }
+
+      /* 寬螢幕：隱藏 Tab 列（因為兩欄永遠同時顯示） */
+      .split-pane-left .tabs {
+        display: none;
+      }
+
+      /* 寬螢幕：左欄頂部加一個標題列 */
+      .split-left-header {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 10px 16px;
+        background: #0f172a;
+        border-bottom: 2px solid #334155;
+        flex-shrink: 0;
+        font-size: 1.1rem;
+        color: #60a5fa;
+        letter-spacing: 0.08em;
+      }
+
+      /* 寬螢幕：右欄頂部標題（取代 ✕ 按鈕） */
+      .split-right-header {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 10px 16px;
+        background: rgba(0,24,24,0.70);
+        border-bottom: 1px solid rgba(160,220,210,0.22);
+        flex-shrink: 0;
+        font-size: 1.1rem;
+        color: #2dd4bf;
+        letter-spacing: 0.08em;
+      }
+
+      /* 寬螢幕：右欄隱藏返回按鈕 */
+      .split-pane-right #backToPrompter {
+        display: none;
+      }
+
+      /* 寬螢幕：右欄 dict-title padding 縮小（因為無返回鍵） */
+      .split-pane-right .dict-title {
+        padding: 0 80px;
+      }
+
+      /* 寬螢幕：jyutping FAB 定位在右欄內 */
+      .split-pane-right ~ * .jyutping-fab,
+      body.mode-dict-page .jyutping-fab {
+        right: calc(env(safe-area-inset-right, 0px) - 9px);
+      }
+
+      /* 寬螢幕：jyutping 面板只覆蓋右欄 */
+      .jyutping-panel {
+        left: auto;
+        right: 0;
+        width: var(--split-right-w, 50%);
+        min-width: 280px;
+        border-radius: 24px 24px 0 0;
+      }
+      .jyutping-backdrop {
+        left: auto;
+        right: 0;
+        width: var(--split-right-w, 50%);
+        min-width: 280px;
+      }
+
+      /* 寬螢幕：#root 和 #rootDict 填滿各自欄位 */
+      #root, #rootDict {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      /* 寬螢幕：左欄 .content 要 flex column 以支持 textarea 展開 */
+      .split-pane-left .content {
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+      }
+
+      /* 寬螢幕：textarea 填滿左欄可用空間 */
+      .split-pane-left .prompter-area {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        min-height: 0;
+      }
+      .split-pane-left .prompter-area > div:first-child {
+        flex-shrink: 0;
+      }
+      .split-pane-left .prompter-area > div:nth-child(2) {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+      }
+      .split-pane-left .prompter-area textarea {
+        height: auto !important;
+        flex: 1;
+        min-height: 120px;
+        resize: none;
+      }
+    }
+
+    /* 窄螢幕（< 768px）：維持原有單欄，split-layout 退化為單欄 */
+    @media (max-width: 767px) {
+      .split-layout {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+      }
+      .split-pane-left,
+      .split-pane-right {
+        width: 100vw !important;
+        height: 100vh;
+        position: absolute;
+        top: 0; left: 0;
+      }
+      .split-pane-right {
+        display: none;
+      }
+      .split-pane-left.hide-mobile {
+        display: none;
+      }
+      .split-pane-right.show-mobile {
+        display: flex;
+        flex-direction: column;
+      }
+      .split-divider {
+        display: none;
+      }
+      .split-left-header {
+        display: none;
+      }
+      .split-right-header {
+        display: none;
+      }
+    }
+
   </style>
 </head>
 <body>
-	<div id="root"></div>
+	<div class="split-layout" id="splitLayout">
+	  <div class="split-pane-left" id="splitPaneLeft">
+	    <div id="root"></div>
+	  </div>
+	  <div class="split-divider" id="splitDivider" title="拖動調整寬度"></div>
+	  <div class="split-pane-right" id="splitPaneRight">
+	    <div id="rootDict"></div>
+	  </div>
+	</div>
 	<div id="jyutpingBackdrop" class="jyutping-backdrop" aria-hidden="true"></div>
 	
 	<!-- 粵語同音字查詢面板（NEW v20260626，取代舊版） -->
@@ -2668,11 +2917,22 @@ try {
       }
     });
 
+    let _lastWideLayout = isWideLayout();
     window.addEventListener('resize', () => {
       if (state.isTyping) {
         state.contextWindowSize = 0;
         setTimeout(() => { computeContextWindowSize(); layoutTypingContext(); }, 120);
         updateHintKbdCompact();
+      } else {
+        // 寬/窄切換時重新渲染
+        const nowWide = isWideLayout();
+        if (nowWide !== _lastWideLayout) {
+          _lastWideLayout = nowWide;
+          clearTimeout(window._resizeRenderDebounce);
+          window._resizeRenderDebounce = setTimeout(() => render(), 80);
+        }
+        // 寬螢幕：更新 jyutping 面板寬度
+        if (nowWide) _updateJyutpingPanelWidth();
       }
     }, { passive: true });
 
@@ -3004,8 +3264,14 @@ try {
     function onboardingMaybe(){
       if (state.isTyping) { if (tour.open) closeTour(); return; }
       if (tour.open) { refreshTour(); return; }
-      if (state.activeTab === 'prompter' && !tourDone('prompter')) startPrompterTour();
-      if (state.activeTab === 'dict' && !tourDone('dict')) startDictTour();
+      if (isWideLayout()) {
+        // 寬螢幕：兩欄同時顯示，先輸提詞機教學，完成後再輸查單字教學
+        if (!tourDone('prompter')) { startPrompterTour(); return; }
+        if (!tourDone('dict')) { startDictTour(); return; }
+      } else {
+        if (state.activeTab === 'prompter' && !tourDone('prompter')) startPrompterTour();
+        if (state.activeTab === 'dict' && !tourDone('dict')) startDictTour();
+      }
     }
 
     // ===== 發聲（可選／按鈕觸發）=====
@@ -3407,6 +3673,11 @@ try {
       } catch(e) {}
     }
 
+    // 判斷係唔係寬螢幕雙欄模式
+    function isWideLayout() {
+      return window.innerWidth >= 768;
+    }
+
     function renderMain() {
       const active = state.activeTab;
       const text = state.inputText;
@@ -3417,6 +3688,190 @@ try {
       const textArray = text.replace(/\s+/g, '').split('');
       state.textArray = textArray;
       const isReady = (dictStatus === 'ready' || dictStatus === 'embedded');
+      const wide = isWideLayout();
+
+      // ===== 寬螢幕：同時渲染左欄（提詞機）+ 右欄（查單字） =====
+      if (wide) {
+        // 左欄 HTML（提詞機，永遠顯示）
+        let leftHtml = `
+          <div class="app">
+            ${getStatusBanner()}
+            <div class="tabs" style="display:none;"></div>
+            <div class="content">
+        `;
+        leftHtml += `
+          <div class="prompter-area">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;">
+              <div style="display:flex;gap:8px;align-items:center;">
+                <button id="prompterTextSpeakBtn" class="prompter-speak-btn" aria-label="朗讀全文" ${text.trim() ? '' : 'disabled'} title="🔊 朗讀全文">
+                  <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" style="width:26px;height:26px;">
+                    <path d="M192 192h-80a16 16 0 00-16 16v96a16 16 0 0016 16h80l96 96V128l-96 96z" fill="currentColor"/>
+                    <path d="M384 320c9.74-19.41 16-43.05 16-64 0-20.95-6.26-44.59-16-64" fill="none" stroke="currentColor" stroke-width="32" stroke-linecap="round"/>
+                    <path d="M448 384c18.67-37.34 32-84.41 32-128 0-43.59-13.33-90.66-32-128" fill="none" stroke="currentColor" stroke-width="32" stroke-linecap="round"/>
+                  </svg>
+                </button>
+                <button id="prompterClearBtn" class="prompter-speak-btn" aria-label="清除輸入" ${text.trim() ? '' : 'disabled'} title="清除輸入">
+                  <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <g transform="translate(4 2) rotate(-18 32 32)">
+                      <rect x="25" y="4" width="12" height="32" rx="6"/>
+                      <path d="M19 34c2.2-8 21.8-8 24 0l-24 8z"/>
+                      <path d="M17 43h30c-2 9-9 15-18 17H14c2-5 3-11 3-17z"/>
+                      <path d="M26 44l-2 16h6l1-16z" fill="#0b1220" opacity="0.95"/>
+                      <path d="M37 44l7 12 5-4-7-8z" fill="#0b1220" opacity="0.95"/>
+                      <path d="M19 39l24-8 2 5-28 9z" fill="#0b1220" opacity="0.95"/>
+                    </g>
+                  </svg>
+                </button>
+                <button id="prompterSaveBtn" class="prompter-speak-btn" aria-label="即時儲存" ${text.trim() ? '' : 'disabled'} title="💾 即時儲存" style="font-size: 1.2rem; background: transparent; border: none; box-shadow: none;">
+                  💾
+                </button>
+              </div>
+              <div style="display:flex;gap:8px;">
+                <button id="replayTourBtn" class="prompter-help-btn" title="重播教學"><span class="help-ic" aria-hidden="true">💡</span><span class="help-txt">教學</span></button>
+                <button id="fullscreenBtn" class="fullscreen-icon-btn" title="全螢幕" aria-label="全螢幕">
+                  <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path d="M8 24V8h16L18 14l11 11-4 4L14 18z"/>
+                    <path d="M56 24V8H40l6 6-11 11 4 4 11-11z"/>
+                    <path d="M8 40v16h16l-6-6 11-11-4-4-11 11z"/>
+                    <path d="M56 40v16H40l6-6-11-11 4-4 11 11z"/>
+                  </svg>
+                  <span>全螢幕</span>
+                </button>
+              </div>
+            </div>
+            <div style="position:relative;">
+              <textarea id="inputTextArea" placeholder=" ">${escapeHtml(text)}</textarea>
+              <div id="fauxPlaceholder" class="custom-placeholder" style="display: ${text.length === 0 ? 'flex' : 'none'};"><span class="cursor"></span>請輸入訊息</div>
+            </div>
+            <button id="startBtn" class="btn-primary" ${(!isReady || textArray.length===0)?'disabled':''}>
+              ▶ 開始
+            </button>
+          </div>
+        `;
+        if (drafts.length > 0) {
+          leftHtml += `
+            <div class="drafts">
+              <h3><span>💾 已儲存草稿</span><button id="clearDraftsBtn" class="draft-clear-btn" title="一鍵清曬草稿">🧹 清除</button></h3>
+              ${drafts.map(d => `
+                <div class="draft-item" data-draft-id="${d.id}">
+                  <div class="draft-text">${escapeHtml(d.text)}</div>
+                  <button class="draft-del-btn" data-draft-del-id="${d.id}" title="刪除此備案">🗑</button>
+                </div>
+              `).join('')}
+            </div>
+          `;
+        }
+        leftHtml += `</div></div>`;
+
+        // 右欄 HTML（查單字，永遠顯示）
+        const charData = dictVal ? getCharCodes(dictVal.trim()) : null;
+        let rightHtml = `
+          <div class="app mode-dict">
+            ${getStatusBanner()}
+            <div class="content content-dict">
+        `;
+        rightHtml += `
+          <div class="dict-top">
+            <div class="dict-title" style="padding:0 16px;">查單字</div>
+            <div class="dict-top-actions">
+              <button id="dictCopyBtn" aria-label="複製單字" ${dictVal?'':'disabled'} title="📋 複製">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <path d="M16 1H6a2 2 0 0 0-2 2v10h2V3h10V1z" fill="currentColor"/>
+                  <path d="M18 5H10a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z" fill="currentColor"/>
+                </svg>
+              </button>
+              <button id="dictSpeakBtn" aria-label="聽粵音" ${dictVal?'':'disabled'} title="🔊 聽粵音">
+                <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M192 192h-80a16 16 0 00-16 16v96a16 16 0 0016 16h80l96 96V128l-96 96z" fill="currentColor"/>
+                  <path d="M384 320c9.74-19.41 16-43.05 16-64 0-20.95-6.26-44.59-16-64" fill="none" stroke="currentColor" stroke-width="32" stroke-linecap="round"/>
+                  <path d="M448 384c18.67-37.34 32-84.41 32-128 0-43.59-13.33-90.66-32-128" fill="none" stroke="currentColor" stroke-width="32" stroke-linecap="round"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="dict-area">
+            <div class="dict-input-row">
+              <div id="dictInputWrap" class="dict-input-wrap ${dictVal?'has-value':''}">
+                <input id="dictInput" class="dict-input" type="text" maxlength="1" placeholder="" value="${escapeHtml(dictVal)}">
+                <div class="dict-pen" aria-hidden="true">
+                  <div class="dict-caret"></div>
+                </div>
+              </div>
+              <button id="replayTourBtnDict" class="dict-help-btn" title="重播教學"><span class="help-ic" aria-hidden="true">💡</span><span class="help-txt">教學</span></button>
+            </div>
+            <div class="toggle-bar" style="max-width:380px;margin:0 auto 10px;">
+              <button id="dictBtnQuick" class="${method==='quick'?'active':''}">
+                <span class="btn-title">速成</span>
+                <span class="btn-status">
+                  <span class="status-badge ${(showRad ? 'zh' : 'en')} ${(method==='quick' ? '' : 'inactive')}">${showRad ? '中' : '英'}</span>
+                </span>
+              </button>
+              <button id="dictBtnCangjie" class="${method==='cangjie'?'active':''}">
+                <span class="btn-title">倉頡</span>
+                <span class="btn-status">
+                  <span class="status-badge ${(showRad ? 'zh' : 'en')} ${(method==='cangjie' ? '' : 'inactive')}">${showRad ? '中' : '英'}</span>
+                </span>
+              </button>
+            </div>
+            <div class="result-box ${dictVal?'':'is-hidden'}" id="dictResult">
+              ${isReady ? (dictVal ? renderCodeBlocks(charData, dictVal.trim(), method, showRad) : '') : `<div style="color:#94a3b8;">⏳ 碼表載入中，請稍後…</div>`}
+            </div>
+
+            ${renderCharExtraHtml(dictVal)}
+
+            ${renderRelatedWordsHtml(dictVal)}
+
+            ${renderDictHistoryHtml()}
+
+          </div>
+        `;
+        rightHtml += `</div></div>`;
+
+        // 渲染到各自容器
+        root.innerHTML = leftHtml;
+        const rootDict = document.getElementById('rootDict');
+        if (rootDict) rootDict.innerHTML = rightHtml;
+
+        // 寬螢幕：body 永遠加 mode-dict-page（右欄永遠係 dict 主題）
+        document.body.classList.add('mode-dict-page');
+
+        // 更新 jyutping 面板/backdrop 寬度（跟右欄同寬）
+        _updateJyutpingPanelWidth();
+
+        // 初次進入提詞機：先計算可顯示字數，再做「只顯示完整字」+ 平均分佈
+        state.contextWindowSize = 0;
+        setTimeout(() => { computeContextWindowSize(); layoutTypingContext(); }, 0);
+        setTimeout(() => { computeContextWindowSize(); layoutTypingContext(); }, 140);
+        setTimeout(() => computeContextWindowSize(), 0);
+        setTimeout(() => computeContextWindowSize(), 120);
+
+        try {
+          if (!state._tctxResizeObserver) {
+            const ro = new ResizeObserver(() => {
+              clearTimeout(state._tctxResizeDebounce);
+              state._tctxResizeDebounce = setTimeout(() => computeContextWindowSize(), 180);
+            });
+            const box = document.getElementById('typingContext');
+            if (box) ro.observe(box);
+            state._tctxResizeObserver = ro;
+          } else {
+            const box = document.getElementById('typingContext');
+            if (box) state._tctxResizeObserver.observe(box);
+          }
+        } catch(e) {}
+
+        // 右欄 dict 相關初始化
+        loadJyutpingDict();
+        refreshRelatedWordsDom();
+        refreshCharExtraDom();
+
+        _bindWideLayoutEvents();
+        return;
+      }
+      // ===== 窄螢幕（原有邏輯） =====
+      // 確保右欄隱藏
+      const rootDict = document.getElementById('rootDict');
+      if (rootDict) rootDict.innerHTML = '';
 
       let html = `
         <div class="app ${active==='dict'?'mode-dict':''}">
@@ -4325,6 +4780,570 @@ try {
 
     }
 
+    // ===== 寬螢幕雙欄：更新 jyutping 面板/backdrop 寬度 =====
+    function _updateJyutpingPanelWidth() {
+      try {
+        const rightPane = document.getElementById('splitPaneRight');
+        if (!rightPane) return;
+        const w = rightPane.offsetWidth;
+        const panel = document.getElementById('jyutpingPanel');
+        const backdrop = document.getElementById('jyutpingBackdrop');
+        if (panel) panel.style.width = w + 'px';
+        if (backdrop) backdrop.style.width = w + 'px';
+      } catch(e) {}
+    }
+
+    // ===== 寬螢幕雙欄：統一事件綁定 =====
+    function _bindWideLayoutEvents() {
+      // 左欄事件（提詞機）
+      const replayBtn = document.getElementById('replayTourBtn');
+      if (replayBtn && !replayBtn.dataset.bound) {
+        replayBtn.dataset.bound = '1';
+        replayBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          clearTourDone('prompter');
+          startPrompterTour();
+        });
+      }
+
+      const replayBtnDict = document.getElementById('replayTourBtnDict');
+      if (replayBtnDict && !replayBtnDict.dataset.bound) {
+        replayBtnDict.dataset.bound = '1';
+        replayBtnDict.addEventListener('click', (e) => {
+          e.preventDefault();
+          clearTourDone('dict');
+          startDictTour();
+        });
+      }
+
+      const fsBtn = document.getElementById('fullscreenBtn');
+      if (fsBtn) {
+        fsBtn.addEventListener('click', () => {
+          try {
+            if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+              document.documentElement.requestFullscreen().catch(e => {
+                alert('此環境或瀏覽器不支援全螢幕 API。建議使用「加入主畫面」功能獲得完美全螢幕體驗。');
+              });
+            } else if (document.fullscreenElement && document.exitFullscreen) {
+              document.exitFullscreen().catch(e => {});
+            }
+          } catch(e) { console.warn(e); }
+        });
+      }
+
+      const textarea = document.getElementById('inputTextArea');
+      if (textarea) {
+        const updateStartBtnState = () => {
+          state.inputText = textarea.value;
+          autoSavePrompterInput();
+          const btn = document.getElementById('startBtn');
+          if (btn) {
+            const arr = state.inputText.replace(/\s+/g,'').split('');
+            btn.disabled = ((dictStatus !== 'ready' && dictStatus !== 'embedded') || arr.length === 0);
+          }
+          const speakBtn = document.getElementById('prompterTextSpeakBtn');
+          if (speakBtn) speakBtn.disabled = (String(state.inputText||'').trim().length === 0);
+          const clearBtn = document.getElementById('prompterClearBtn');
+          if (clearBtn) clearBtn.disabled = (String(state.inputText||'').trim().length === 0);
+          const saveBtn = document.getElementById('prompterSaveBtn');
+          if (saveBtn) saveBtn.disabled = (String(state.inputText||'').trim().length === 0);
+          const faux = document.getElementById('fauxPlaceholder');
+          if (faux) faux.style.display = state.inputText.length === 0 ? 'flex' : 'none';
+        };
+        ['input','change','keyup','paste','compositionend'].forEach(evt => {
+          textarea.addEventListener(evt, updateStartBtnState);
+        });
+        updateStartBtnState();
+
+        const clearBtn = document.getElementById('prompterClearBtn');
+        if (clearBtn) {
+          clearBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            textarea.value = '';
+            state.inputText = '';
+            updateStartBtnState();
+            try { textarea.focus(); } catch(err) {}
+            try { showToast && showToast('已清除'); } catch(err) {}
+            localStorage.removeItem('prompterAutoDraft');
+          });
+        }
+        const prompterSaveBtn = document.getElementById('prompterSaveBtn');
+        if (prompterSaveBtn) {
+          prompterSaveBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            saveCurrentPrompterDraft();
+          });
+        }
+      }
+
+      const prompterTextSpeakBtn = document.getElementById('prompterTextSpeakBtn');
+      if (prompterTextSpeakBtn) {
+        prompterTextSpeakBtn.addEventListener('click', async (e) => {
+          e.preventDefault();
+          const t = String(state.inputText || '').trim();
+          if (!t) return;
+          await speakCantoneseText(t);
+        });
+      }
+
+      const startBtn = document.getElementById('startBtn');
+      if (startBtn) {
+        startBtn.addEventListener('click', async () => {
+          if (dictStatus !== 'ready' && dictStatus !== 'embedded') {
+            const ok = await ensureDict();
+            if (!ok) { alert('碼表尚未準備好，請稍後重試。'); return; }
+          }
+          stopSpeaking();
+          const raw = Array.from(state.inputText);
+          const arr = [];
+          const map = [];
+          raw.forEach((ch, i) => {
+            if (String(ch).trim() === '') return;
+            arr.push(ch); map.push(i);
+          });
+          if (arr.length === 0) return;
+          state.textArray = arr; state.textArrayRaw = raw; state.textIndexMap = map;
+          state.currentIndex = 0;
+          state.isTyping = true;
+          state.showSaveDialog = false;
+          state.hintKbdOn = false;
+          try {
+            if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+              document.documentElement.requestFullscreen().catch(e => {});
+            }
+          } catch(e) {}
+          try {
+            if (!state._typingHistoryPushed) {
+              history.pushState({ view: 'typing' }, '', '#typing');
+              state._typingHistoryPushed = true;
+            }
+          } catch(e) {}
+          render();
+        });
+      }
+
+      document.querySelectorAll('.draft-item').forEach(el => {
+        el.addEventListener('click', (e) => {
+          const t = e.target;
+          if (t && t.closest && t.closest('.draft-del-btn')) return;
+          const id = Number(el.dataset.draftId);
+          const draft = state.savedDrafts.find(d => d.id === id);
+          if (draft) { state.inputText = draft.text; render(); }
+        });
+      });
+
+      document.querySelectorAll('.draft-del-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault(); e.stopPropagation();
+          const id = Number(btn.dataset.draftDelId);
+          if (!id) return;
+          state.savedDrafts = state.savedDrafts.filter(d => d.id !== id);
+          try { localStorage.setItem('savedDrafts', JSON.stringify(state.savedDrafts)); } catch(err) {}
+          render();
+        });
+      });
+
+      document.getElementById('clearDraftsBtn')?.addEventListener('click', () => {
+        state.savedDrafts = [];
+        try { localStorage.setItem('savedDrafts', JSON.stringify([])); } catch(e) {}
+        render();
+      });
+
+      // 右欄（查單字）事件
+      const dictInput = document.getElementById('dictInput');
+      if (dictInput) {
+        dictInput.addEventListener('input', (e) => {
+          let val = e.target.value;
+          if (val.length > 1) val = val.slice(0,1);
+          state.dictInput = val;
+          if (val) addToDictHistory(val);
+          render();
+        });
+        dictInput.addEventListener('focus', (e) => e.target.select());
+        dictInput.addEventListener('click', () => {
+          if (!state.dictInput) return;
+          state.dictInput = ''; render();
+          setTimeout(() => {
+            const el = document.getElementById('dictInput');
+            if (el) { el.focus(); el.value = ''; }
+          }, 0);
+        });
+      }
+
+      function toggleDictMethodAndRad(methodKey){
+        if (state.inputMethod !== methodKey) {
+          state.inputMethod = methodKey; render(); return;
+        }
+        state.showRadical = !state.showRadical;
+        if (state.showRadical) stopSpeaking();
+        render();
+      }
+      document.getElementById('dictBtnQuick')?.addEventListener('click', () => toggleDictMethodAndRad('quick'));
+      document.getElementById('dictBtnCangjie')?.addEventListener('click', () => toggleDictMethodAndRad('cangjie'));
+
+      const copyBtn = document.getElementById('dictCopyBtn');
+      if (copyBtn) {
+        copyBtn.addEventListener('click', async (e) => {
+          e.preventDefault();
+          const ch = String(state.dictInput || '').trim();
+          if (!ch) return;
+          await copyTextSafe(ch);
+        });
+      }
+
+      const speakBtn = document.getElementById('dictSpeakBtn');
+      if (speakBtn) {
+        speakBtn.addEventListener('click', async (e) => {
+          e.preventDefault();
+          const ch = String(state.dictInput || '').trim();
+          if (!ch) return;
+          await speakCantoneseChar(ch);
+        });
+      }
+
+      const relWrap = document.getElementById('relWordsWrap');
+      if (relWrap && !relWrap.dataset.bound) {
+        relWrap.dataset.bound = '1';
+        relWrap.addEventListener('click', async (e) => {
+          const t = e.target;
+          const btn = t && t.closest ? t.closest('[data-relw]') : null;
+          if (!btn) return;
+          e.preventDefault();
+          const w = String(btn.getAttribute('data-relw') || '').trim();
+          if (!w) return;
+          await copyTextSafe(w);
+        });
+      }
+
+      // 粗語同音字 FAB
+      const jyFab = document.getElementById('jyutpingFab');
+      const jyPanel = document.getElementById('jyutpingPanel');
+      const jyClose = document.getElementById('closeJyutping');
+      const jyInput = document.getElementById('jyutpingInput');
+      const jyResults = document.getElementById('jyutpingResults');
+      const jyBackdrop = document.getElementById('jyutpingBackdrop');
+      const jyClear = document.getElementById('jyutpingClearBtn');
+      const jyRegionBtn = document.getElementById('jyutpingRegionBtn');
+      const jyScriptBtn = document.getElementById('jyutpingScriptBtn');
+      const jySelfTestBtn = document.getElementById('jyutpingSelfTestBtn');
+
+      if (jyFab) {
+        const isPanelOpen = jyPanel && jyPanel.classList.contains('open');
+        jyFab.style.display = (!state.isTyping && !isPanelOpen) ? 'flex' : 'none';
+
+        async function openJyPanelWithQuery(forceQuery='', opts={}) {
+          try {
+            try { if (jyResults) jyResults.innerHTML = '<div class="jyutping-empty">輸入中文開始查詢</div>'; } catch(e) {}
+            jyPanel.classList.add('open');
+            if (jyBackdrop) jyBackdrop.classList.add('open');
+            if (jyFab) jyFab.style.display = 'none';
+            let fallback = '';
+            if (jyInput) {
+              jyInput.value = '';
+              let protagonist = '';
+              try {
+                const el = document.getElementById('dictInput');
+                protagonist = String(el && el.value ? el.value : '').trim();
+              } catch(e) { protagonist = ''; }
+              fallback = String(forceQuery || protagonist || opts.source || state.dictInput || state.lastDictChar || (Array.isArray(state.dictHistory) ? state.dictHistory[0] : '') || '').trim();
+              if (fallback) jyInput.value = fallback;
+              jyInput.focus();
+            }
+            try {
+              if (!opts.suppressHistory && !state._jySuppressHistory && location.hash !== '#dict-jy') {
+                history.pushState({ view:'dict-jy-panel', jyQuery: fallback, source: (opts.source || state.dictInput || fallback || '') }, '', '#dict-jy');
+              }
+            } catch(e) {}
+            state._jySuppressHistory = false;
+            if (!jyutpingLoaded) {
+              jyResults.innerHTML = '<div class="jyutping-empty">正在載入同音字資料…</div>';
+              await loadJyutpingDict();
+            }
+            try { window.__homophoneLastOpenTs = Date.now(); } catch(e) {}
+            try { window.__performJyHomophoneSearch && window.__performJyHomophoneSearch(); } catch(e) {}
+          } catch(e) { console.error('[Homophone] open panel failed', e); }
+        }
+        window.__openJyutpingPanelWithQuery = openJyPanelWithQuery;
+
+        if (!jyFab.dataset.bound) {
+          jyFab.dataset.bound = '1';
+          jyFab.addEventListener('click', async () => {
+            await openJyPanelWithQuery('', { suppressHistory:false });
+          });
+        }
+      }
+
+      function resetJyPanel(){
+        try { jyPanel && jyPanel.classList.remove('open'); } catch(e) {}
+        if (jyBackdrop) { try { jyBackdrop.classList.remove('open'); } catch(e) {} }
+        if (jyFab && !state.isTyping) jyFab.style.display = 'flex';
+        if (jyInput) { try { jyInput.value = ''; } catch(e) {} try { jyInput.blur && jyInput.blur(); } catch(e) {} }
+        if (jyResults) { try { jyResults.innerHTML = '<div class="jyutping-empty">輸入中文開始查詢</div>'; } catch(e) {} }
+      }
+
+      if (jyClose && !jyClose.dataset.bound) {
+        jyClose.dataset.bound = '1';
+        const closeJy = () => resetJyPanel();
+        jyClose.addEventListener('click', closeJy);
+        if (jyPanel && !jyPanel.dataset.closeDelegated) {
+          jyPanel.dataset.closeDelegated = '1';
+          jyPanel.addEventListener('click', (e)=>{
+            try {
+              const t = e.target;
+              if (t && (t.id === 'closeJyutping' || (t.closest && t.closest('#closeJyutping')))) {
+                e.preventDefault(); resetJyPanel();
+              }
+            } catch(err) {}
+          });
+        }
+        if (jyBackdrop && !jyBackdrop.dataset.bound) {
+          jyBackdrop.dataset.bound = '1';
+          jyBackdrop.addEventListener('click', closeJy);
+        }
+        if (!window.__jyEscBound) {
+          window.__jyEscBound = true;
+          document.addEventListener('keydown', (e) => {
+            try {
+              if (e.key === 'Escape' && jyPanel && jyPanel.classList.contains('open')) closeJy();
+            } catch(err) {}
+          });
+        }
+        window.__closeJyutpingPanel = closeJy;
+      }
+
+      if (jyClear && !jyClear.dataset.bound) {
+        jyClear.dataset.bound = '1';
+        jyClear.addEventListener('click', () => {
+          if (!jyInput) return;
+          jyInput.value = '';
+          jyResults.innerHTML = '<div class="jyutping-empty">輸入中文開始查詢</div>';
+          jyInput.focus();
+        });
+      }
+
+      if (jyRegionBtn && !jyRegionBtn.dataset.bound) {
+        jyRegionBtn.dataset.bound = '1';
+        jyRegionBtn.addEventListener('click', () => {
+          if (!window.HKHomophones) return;
+          const current = window.HKHomophones.getRegion();
+          const next = current === 'HK' ? 'CN' : 'HK';
+          window.HKHomophones.setRegion(next);
+          jyRegionBtn.innerText = `地區: ${next === 'HK' ? '香港' : '大陸'}`;
+          try { window.__performJyHomophoneSearch && window.__performJyHomophoneSearch(); } catch(e) {}
+        });
+      }
+
+      const JY_SCRIPT_MODE_KEY = 'jy_script_mode_v1';
+      if (!state.jyScriptMode) {
+        try {
+          const m = String(localStorage.getItem(JY_SCRIPT_MODE_KEY) || 'both');
+          state.jyScriptMode = (m === 'trad' || m === 'simp' || m === 'both') ? m : 'both';
+        } catch(e) { state.jyScriptMode = 'both'; }
+      }
+      function updateJyScriptBtnText(){
+        if (!jyScriptBtn) return;
+        const m = state.jyScriptMode || 'both';
+        jyScriptBtn.innerText = (m === 'trad') ? '顯示: 繁體' : (m === 'simp') ? '顯示: 簡體' : '顯示: 繁+簡';
+      }
+      updateJyScriptBtnText();
+
+      if (jyScriptBtn && !jyScriptBtn.dataset.bound) {
+        jyScriptBtn.dataset.bound = '1';
+        jyScriptBtn.addEventListener('click', () => {
+          const cur = state.jyScriptMode || 'both';
+          const next = (cur === 'both') ? 'trad' : (cur === 'trad') ? 'simp' : 'both';
+          state.jyScriptMode = next;
+          try { localStorage.setItem(JY_SCRIPT_MODE_KEY, next); } catch(e) {}
+          updateJyScriptBtnText();
+          try { window.__performJyHomophoneSearch && window.__performJyHomophoneSearch(); } catch(e) {}
+        });
+      }
+
+      if (jyInput && !jyInput.dataset.bound) {
+        jyInput.dataset.bound = '1';
+        let isComposing = false;
+        jyInput.addEventListener('compositionstart', () => { isComposing = true; });
+        jyInput.addEventListener('compositionend', () => { isComposing = false; tryPerformWide(); });
+
+        let __toTrad = null; let __toSimp = null;
+        function ensureConverters(){
+          if (__toTrad && __toSimp) return;
+          try {
+            if (window.OpenCC && typeof window.OpenCC.Converter === 'function') {
+              __toTrad = window.OpenCC.Converter({ from: 'cn', to: 'hk' });
+              __toSimp = window.OpenCC.Converter({ from: 'hk', to: 'cn' });
+            }
+          } catch(e) { __toTrad = null; __toSimp = null; }
+        }
+        function toTradChar(ch){ ensureConverters(); try { return (__toTrad ? __toTrad(String(ch)) : String(ch)); } catch(e) { return String(ch); } }
+        function toSimpChar(ch){ ensureConverters(); try { return (__toSimp ? __toSimp(String(ch)) : String(ch)); } catch(e) { return String(ch); } }
+        function getProtagonistChar(){
+          try { const el = document.getElementById('dictInput'); const v = String(el && el.value ? el.value : '').trim(); return v ? Array.from(v)[0] : ''; } catch(e) {}
+          return (state.dictInput || state.lastDictChar || '');
+        }
+        function renderNoInput(msg){ jyResults.innerHTML = `<div class="jyutping-empty">${escapeHtml(msg || '輸入中文開始查詢')}</div>`; }
+
+        function renderGroups(groups){
+          const mode = state.jyScriptMode || 'both';
+          const preferred = (()=>{ try { const p = getProtagonistChar(); if (!p) return 'trad'; const simp = toSimpChar(p); const trad = toTradChar(p); if (p === simp && p !== trad) return 'simp'; return 'trad'; } catch(e) { return 'trad'; } })();
+          jyResults.innerHTML = groups.map(g => {
+            function formatPinyinLabel(py){ try { const m = String(py||'').match(/^jing([1-6])?$/i); if (m) { const t = m[1]||''; return `jing${t}（Yale: ying${t}）`; } } catch(e) {} return String(py||''); }
+            const srcTrad = toTradChar(g.sourceChar); const srcSimp = toSimpChar(g.sourceChar);
+            let srcHtml = escapeHtml(g.sourceChar);
+            if (mode === 'trad') srcHtml = escapeHtml(srcTrad);
+            else if (mode === 'simp') srcHtml = escapeHtml(srcSimp);
+            else if (srcTrad !== srcSimp) srcHtml = `<span class="jy-source-both"><span class="jy-source-trad">${escapeHtml(srcTrad)}</span><span class="jy-source-sep">/</span><span class="jy-source-simp">${escapeHtml(srcSimp)}</span></span>`;
+            const pills = (g.pinyins||[]).map(p=>`<span class="jyutping-py-pill">${escapeHtml(formatPinyinLabel(p.pinyin))}</span>`).join('');
+            const blocks = (g.pinyins||[]).map(p=>{
+              const pyLabel = formatPinyinLabel(p.pinyin); const list = (p.chars||[]);
+              const show = list.slice(0,180); const more = list.length - show.length;
+              const map = new Map();
+              for (const ch of show) { const t=toTradChar(ch); const s=toSimpChar(ch); const key=(mode==='trad')?t:(mode==='simp')?s:(t+'|'+s); if (!map.has(key)) map.set(key,{trad:t,simp:s}); }
+              const items = Array.from(map.values());
+              const btns = items.map(it=>{ const pick=(mode==='trad')?it.trad:(mode==='simp')?it.simp:(preferred==='simp'?it.simp:it.trad); if (mode==='both'&&it.trad!==it.simp) return `<button class="jyutping-char-btn jy-both" data-pick="${escapeHtml(pick)}" data-trad="${escapeHtml(it.trad)}" data-simp="${escapeHtml(it.simp)}"><div class="jy-both-line"><span class="jy-tag trad">繁</span><span class="jy-ch">${escapeHtml(it.trad)}</span></div><div class="jy-both-line"><span class="jy-tag simp">簡</span><span class="jy-ch">${escapeHtml(it.simp)}</span></div></button>`; const disp=(mode==='trad')?it.trad:(mode==='simp')?it.simp:it.trad; return `<button class="jyutping-char-btn" data-pick="${escapeHtml(pick)}">${escapeHtml(disp)}</button>`; }).join('');
+              return `<div class="jyutping-subnote">${escapeHtml(pyLabel)} · 同音字 ${list.length}${more>0?`（只顯示前 ${show.length}）`:''}</div><div class="jyutping-chars">${btns||'<span style="color:#475569;font-weight:900;">（無）</span>'}</div>`;
+            }).join('');
+            return `<div class="jyutping-item"><div class="jyutping-charhead"><div class="jyutping-source">${srcHtml}</div><div class="jyutping-pys">${pills||'<span class="jyutping-py-pill">（無讀音）</span>'}</div></div>${blocks||'<div style="color:#f87171;font-weight:900;">此字未收錄（或冒粵拼資料）</div>'}</div>`;
+          }).join('');
+          jyResults.querySelectorAll('.jyutping-char-btn').forEach(btn => {
+            btn.addEventListener('click', async () => {
+              const ch = btn.getAttribute('data-pick'); if (!ch) return;
+              let q = ''; try { q = String(jyInput && jyInput.value ? jyInput.value : '').trim(); } catch(e) {}
+              const source = q || state.dictInput || ch;
+              try { history.pushState({ view:'dict-jy-picked', jyQuery:q, source, picked:ch }, '', '#dict-jy-picked'); } catch(e) {}
+              state.dictInput = ch; addToDictHistory(ch);
+              try { await copyTextSafe(ch); } catch(e) {}
+              try { window.__closeJyutpingPanel && window.__closeJyutpingPanel(); } catch(e) {}
+              render();
+            });
+          });
+        }
+
+        async function tryPerformWide(){
+          if (isComposing) return;
+          const val = (jyInput.value || '').trim();
+          if (!val) return renderNoInput('輸入中文開始查詢');
+          const chars = Array.from(val).filter(ch => isChinese(ch));
+          const hasHan = chars.length > 0;
+          const pyLike = /^[a-z]+[1-6]?$/i.test(val);
+          if (!hasHan && !pyLike) return renderNoInput('只接受中文輸入（例：我／我哋）');
+          if (!jyutpingLoaded) { jyResults.innerHTML = '<div class="jyutping-empty">正在載入同音字資料…</div>'; await loadJyutpingDict(); }
+          try {
+            const dbg = window.HKHomophones?._debug?.();
+            const loaded = !!dbg?.dictLoaded;
+            const cCount = loaded ? Object.keys(dbg.dict?.char_to_pinyin||{}).length : 0;
+            const pCount = loaded ? Object.keys(dbg.dict?.pinyin_to_chars||{}).length : 0;
+            if (!loaded || cCount === 0 || pCount === 0) return renderNoInput('同音字資料未成功載入（PWA 可能食緊舊快取）');
+          } catch(e) {}
+          let groups = [];
+          if (hasHan) groups = searchCantoneseHomophones(chars.join(''));
+          else groups = (window.HKHomophones && window.HKHomophones.searchByPinyin) ? window.HKHomophones.searchByPinyin(val, { limitPerReading: 180 }) : [];
+          if (!groups.length) return renderNoInput(hasHan ? '未找到（呢個字可能未收錄）' : '未找到（可能冗呢個讀音）');
+          renderGroups(groups);
+        }
+        function tryPerformWideDebounced(){ clearTimeout(tryPerformWideDebounced._t); tryPerformWideDebounced._t = setTimeout(tryPerformWide, 60); }
+        jyInput.addEventListener('input', () => { if (!isComposing) tryPerformWideDebounced(); });
+        window.__performJyHomophoneSearch = tryPerformWide;
+      }
+
+      if (jySelfTestBtn && !jySelfTestBtn.dataset.bound) {
+        jySelfTestBtn.dataset.bound = '1';
+        jySelfTestBtn.addEventListener('click', async () => {
+          if (!jyutpingLoaded) await loadJyutpingDict();
+          const sample = ['我','你','佢','唔','和','嗺','哋','𨳺'];
+          const rows = sample.map(ch => {
+            const pys = (jyutpingData?.char_to_pinyin?.[ch] || []);
+            const first = pys[0] ? (jyutpingData?.pinyin_to_chars?.[pys[0]] || []) : [];
+            return { ch, pys: pys.join(' / '), first_py_count: first.length };
+          });
+          console.group('🧪 自檢：粵語同音字'); console.table(rows); console.groupEnd();
+          alert('自檢完成：請開 Console 睺表格（🧪 自檢：粵語同音字）');
+        });
+      }
+
+      const clearHistBtn = document.getElementById('dictHistoryClear');
+      if (clearHistBtn) {
+        clearHistBtn.addEventListener('click', (e) => { e.preventDefault(); clearDictHistory(); render(); });
+      }
+
+      document.querySelectorAll('[data-dict-pick]').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.preventDefault();
+          const ch = String(btn.getAttribute('data-dict-pick') || '').trim();
+          if (!ch) return;
+          state.dictInput = Array.from(ch)[0];
+          addToDictHistory(state.dictInput);
+          try { await copyTextSafe(state.dictInput); } catch(err) {}
+          render();
+          setTimeout(() => { const el = document.getElementById('dictInput'); if (el) { try { el.blur?.(); } catch(e) {} } }, 0);
+        });
+      });
+
+      document.querySelectorAll('[data-dict-del]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          const ch = String(btn.getAttribute('data-dict-del') || '').trim();
+          if (!ch) return;
+          removeFromDictHistory(Array.from(ch)[0]);
+          render();
+        });
+      });
+
+      // 寬螢幕：拖動分隔線
+      _setupSplitDivider();
+    }
+
+    // ===== 寬螢幕：拖動分隔線 =====
+    function _setupSplitDivider() {
+      const divider = document.getElementById('splitDivider');
+      const leftPane = document.getElementById('splitPaneLeft');
+      const layout = document.getElementById('splitLayout');
+      if (!divider || !leftPane || !layout) return;
+      if (divider.dataset.splitBound) return;
+      divider.dataset.splitBound = '1';
+
+      let dragging = false;
+      let startX = 0;
+      let startW = 0;
+
+      function onDragStart(e) {
+        dragging = true;
+        startX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX;
+        startW = leftPane.offsetWidth;
+        divider.classList.add('dragging');
+        document.body.style.userSelect = 'none';
+        document.body.style.cursor = 'col-resize';
+      }
+      function onDragMove(e) {
+        if (!dragging) return;
+        const clientX = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX;
+        const dx = clientX - startX;
+        const totalW = layout.offsetWidth;
+        const minW = 280;
+        const maxW = totalW - 280 - 6;
+        const newW = Math.max(minW, Math.min(maxW, startW + dx));
+        const pct = (newW / totalW * 100).toFixed(2) + '%';
+        leftPane.style.width = pct;
+        document.documentElement.style.setProperty('--split-left-w', pct);
+        document.documentElement.style.setProperty('--split-right-w', (100 - parseFloat(pct)).toFixed(2) + '%');
+        _updateJyutpingPanelWidth();
+      }
+      function onDragEnd() {
+        if (!dragging) return;
+        dragging = false;
+        divider.classList.remove('dragging');
+        document.body.style.userSelect = '';
+        document.body.style.cursor = '';
+      }
+
+      divider.addEventListener('mousedown', onDragStart);
+      divider.addEventListener('touchstart', onDragStart, { passive: true });
+      document.addEventListener('mousemove', onDragMove);
+      document.addEventListener('touchmove', onDragMove, { passive: true });
+      document.addEventListener('mouseup', onDragEnd);
+      document.addEventListener('touchend', onDragEnd);
+    }
+
     function getContextWindowSize() {
       const v = Number(state.contextWindowSize || 0);
       if (v && v > 0) return v;
@@ -4480,6 +5499,12 @@ try {
     }
 
     function renderTypingMode() {
+      // 寬螢幕：清空右欄，打字模式展開到左欄
+      if (isWideLayout()) {
+        const rootDict = document.getElementById('rootDict');
+        if (rootDict) rootDict.innerHTML = '';
+        document.body.classList.remove('mode-dict-page');
+      }
       const arr = state.textArray;
       const idx = state.currentIndex;
       const char = arr[idx] || '';
@@ -4647,6 +5672,17 @@ try {
       `;
 
       root.innerHTML = html;
+
+      // 寬螢幕：打字模式讓左欄佔滿全寬（暫時隱藏分隔線和右欄）
+      if (isWideLayout()) {
+        const divider = document.getElementById('splitDivider');
+        const rightPane = document.getElementById('splitPaneRight');
+        if (divider) divider.style.display = 'none';
+        if (rightPane) rightPane.style.display = 'none';
+        const leftPane = document.getElementById('splitPaneLeft');
+        if (leftPane) leftPane.style.width = '100vw';
+      }
+
 
       // 朗讀設定：綁定 UI（齒輪任何模式都可撳）
       {
@@ -4821,6 +5857,15 @@ try {
         try { history.back(); } catch(e) {}
         return;
       }
+      // 寬螢幕：退出打字模式時恢復雙欄佈局
+      if (isWideLayout()) {
+        const divider = document.getElementById('splitDivider');
+        const rightPane = document.getElementById('splitPaneRight');
+        if (divider) divider.style.display = '';
+        if (rightPane) rightPane.style.display = '';
+        const leftPane = document.getElementById('splitPaneLeft');
+        if (leftPane) leftPane.style.width = '';
+      }
       if (document.fullscreenElement && document.exitFullscreen) { try { document.exitFullscreen().catch(e=>{}); } catch(e){} }
       stopSpeaking();
       state.isTyping = false;
@@ -4833,6 +5878,15 @@ try {
       render();
     }
     function closeAndClear() {
+      // 寬螢幕：退出打字模式時恢復雙欄佈局
+      if (isWideLayout()) {
+        const divider = document.getElementById('splitDivider');
+        const rightPane = document.getElementById('splitPaneRight');
+        if (divider) divider.style.display = '';
+        if (rightPane) rightPane.style.display = '';
+        const leftPane = document.getElementById('splitPaneLeft');
+        if (leftPane) leftPane.style.width = '';
+      }
       if (document.fullscreenElement && document.exitFullscreen) { try { document.exitFullscreen().catch(e=>{}); } catch(e){} }
       stopSpeaking();
       state.isTyping = false;
