@@ -3335,6 +3335,57 @@ try {
       }
     }
 
+    function saveCurrentPrompterDraft() {
+      const text = String(state.inputText || '').trim();
+      if (!text) {
+        try { showToast && showToast('冇內容可以儲存'); } catch(e) {}
+        return;
+      }
+      const newDraft = {
+        id: Date.now(),
+        text: state.inputText,
+        date: new Date().toLocaleString()
+      };
+      state.savedDrafts = [newDraft, ...state.savedDrafts];
+      try {
+        localStorage.setItem('savedDrafts', JSON.stringify(state.savedDrafts));
+        try { showToast && showToast('已儲存'); } catch(e) {}
+        render();
+      } catch (err) {
+        alert('儲存失敗：文章可能太長，瀏覽器空間不足。');
+      }
+    }
+
+    let prompterAutoSaveTimer = null;
+    function autoSavePrompterInput() {
+      clearTimeout(prompterAutoSaveTimer);
+      prompterAutoSaveTimer = setTimeout(() => {
+        try {
+          if (state.inputText) {
+            localStorage.setItem('prompterAutoDraft', state.inputText);
+            localStorage.setItem('prompterAutoDraftTime', new Date().toLocaleString());
+          }
+        } catch (err) {
+          console.warn('自動暫存失敗', err);
+        }
+      }, 800);
+    }
+
+    function loadPrompterAutoDraft() {
+      try {
+        const draft = localStorage.getItem('prompterAutoDraft') || '';
+        if (draft && !state.inputText) {
+          const ok = confirm('偵測到上次未完成嘅文章，要唔要還原？');
+          if (ok) {
+            state.inputText = draft;
+            render();
+          } else {
+            localStorage.removeItem('prompterAutoDraft');
+          }
+        }
+      } catch(e) {}
+    }
+
     function renderMain() {
       const active = state.activeTab;
       const text = state.inputText;
@@ -3381,6 +3432,9 @@ try {
                       <path d="M19 39l24-8 2 5-28 9z" fill="#0b1220" opacity="0.95"/>
                     </g>
                   </svg>
+                </button>
+                <button id="prompterSaveBtn" class="prompter-speak-btn" aria-label="即時儲存" ${text.trim() ? '' : 'disabled'} title="💾 即時儲存" style="font-size: 1.2rem; background: transparent; border: none; box-shadow: none;">
+                  💾
                 </button>
               </div>
               <div style="display:flex;gap:8px;">
@@ -3621,6 +3675,7 @@ try {
       if (textarea) {
         const updateStartBtnState = () => {
           state.inputText = textarea.value;
+          autoSavePrompterInput();
           const btn = document.getElementById('startBtn');
           if (btn) {
             const arr = state.inputText.replace(/\s+/g,'').split('');
@@ -3633,6 +3688,10 @@ try {
           const clearBtn = document.getElementById('prompterClearBtn');
           if (clearBtn) {
             clearBtn.disabled = (String(state.inputText||'').trim().length === 0);
+          }
+          const saveBtn = document.getElementById('prompterSaveBtn');
+          if (saveBtn) {
+            saveBtn.disabled = (String(state.inputText||'').trim().length === 0);
           }
           const faux = document.getElementById('fauxPlaceholder');
           if (faux) {
@@ -3653,6 +3712,14 @@ try {
             updateStartBtnState();
             try { textarea.focus(); } catch(err) {}
             try { showToast && showToast('已清除'); } catch(err) {}
+            localStorage.removeItem('prompterAutoDraft');
+          });
+        }
+        const prompterSaveBtn = document.getElementById('prompterSaveBtn');
+        if (prompterSaveBtn) {
+          prompterSaveBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            saveCurrentPrompterDraft();
           });
         }
       }
@@ -5285,7 +5352,8 @@ try {
     }
 
     render();
-
+    loadPrompterAutoDraft();
+    
     if (dictStatus !== 'ready' && dictStatus !== 'embedded') {
       fetchDictWithRetry();
     }
