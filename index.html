@@ -2497,8 +2497,33 @@ try {
     }
 
     function parseZdicMarkdown(md, ch){
-      const out = { pinyin: '', words: [], variants: [], mandarinHomophones: [] };
+      const out = { pinyin: '', words: [], variants: [], mandarinHomophones: [], traditional: '', definition: '' };
       const s = String(md || '');
+
+      // 繁體字
+      try {
+        const m = s.match(/繁体\s*\n\s*\*\s*\[!\[Image[^\]]*\]\([^\)]+\)\]\([^\)]+\s+"([^"]+)"\)/);
+        if (m && m[1]) out.traditional = String(m[1]).trim();
+      } catch(e) {}
+
+      // 簡短定義（從基本解釋提取第一個定義）
+      try {
+        const i = s.indexOf('●');
+        if (i >= 0) {
+          const seg = s.slice(i, i + 800);
+          const lines = seg.split('\n');
+          for (let j = 0; j < lines.length; j++) {
+            const line = lines[j].trim();
+            if (line.match(/^\d+\.\s+/) || (j > 0 && lines[j-1].includes('●'))) {
+              const def = line.replace(/^\d+\.\s+/, '').replace(/[。～]/g, '').trim();
+              if (def && def.length > 0 && def.length < 100) {
+                out.definition = def.slice(0, 60);
+                break;
+              }
+            }
+          }
+        }
+      } catch(e) {}
 
       // 拼音
       try {
@@ -2592,7 +2617,9 @@ try {
         pinyin: pinyin || (zd?.pinyin || ''),
         words: uniqList([...(zd?.words||[])]),
         variants: uniqList([...(zd?.variants||[])]),
-        mandarinHomophones: uniqList([...(zd?.mandarinHomophones||[])])
+        mandarinHomophones: uniqList([...(zd?.mandarinHomophones||[])]),
+        traditional: zd?.traditional || '',
+        definition: zd?.definition || ''
       };
 
       return out;
@@ -2709,11 +2736,21 @@ try {
           st.className = 'cex-status ' + (hasNet ? '' : 'offline');
         }
 
-        const d0 = cached || { pinyin:'', variants:[], mandarinHomophones:[] };
+        const d0 = cached || { pinyin:'', variants:[], mandarinHomophones:[], traditional:'', definition:'' };
         const renderBody = (d) => {
           const pinyin = String(d?.pinyin || '').trim();
+          const traditional = String(d?.traditional || '').trim();
+          const definition = String(d?.definition || '').trim();
           const variants = (d?.variants || []).slice(0, 24);
           const homo = (d?.mandarinHomophones || []).slice(0, 48);
+
+          const tradHtml = traditional
+            ? `<div class="cex-row"><div class="cex-row-title">繁體字</div><div class="cex-chips"><button class="cex-chip" data-dict-pick="${escapeHtml(traditional)}" title="用繁體字再查">${escapeHtml(traditional)}</button></div></div>`
+            : '';
+
+          const defHtml = definition
+            ? `<div class="cex-row"><div class="cex-row-title">字義</div><div class="cex-muted">${escapeHtml(definition)}</div></div>`
+            : '';
 
           const pinyinHtml = pinyin
             ? `<div class="cex-row"><div class="cex-row-title">拼音</div><div class="cex-chips"><button class="cex-chip" data-copy="${escapeHtml(pinyin)}" title="點擊複製">${escapeHtml(pinyin)}</button></div></div>`
@@ -2727,7 +2764,7 @@ try {
             ? `<div class="cex-row"><div class="cex-row-title">普通話同音字</div><div class="cex-chips">${homo.map(x=>`<button class="cex-chip" data-dict-pick="${escapeHtml(x)}" title="用呢個字再查">${escapeHtml(x)}</button>`).join('')}</div></div>`
             : `<div class="cex-row"><div class="cex-row-title">普通話同音字</div><div class="cex-muted">（未有）</div></div>`;
 
-          body.innerHTML = pinyinHtml + vHtml + hHtml;
+          body.innerHTML = tradHtml + defHtml + pinyinHtml + vHtml + hHtml;
         };
 
         renderBody(d0);
@@ -3264,14 +3301,14 @@ try {
     function onboardingMaybe(){
       if (state.isTyping) { if (tour.open) closeTour(); return; }
       if (tour.open) { refreshTour(); return; }
-      if (isWideLayout()) {
-        // 寬螢幕：兩欄同時顯示，先輸提詞機教學，完成後再輸查單字教學
-        if (!tourDone('prompter')) { startPrompterTour(); return; }
-        if (!tourDone('dict')) { startDictTour(); return; }
-      } else {
-        if (state.activeTab === 'prompter' && !tourDone('prompter')) startPrompterTour();
-        if (state.activeTab === 'dict' && !tourDone('dict')) startDictTour();
-      }
+      // 取消自動教學彈出：用戶需要時會手動點擊「💡教學」按鈕。
+      // if (isWideLayout()) {
+      //   if (!tourDone('prompter')) { startPrompterTour(); return; }
+      //   if (!tourDone('dict')) { startDictTour(); return; }
+      // } else {
+      //   if (state.activeTab === 'prompter' && !tourDone('prompter')) startPrompterTour();
+      //   if (state.activeTab === 'dict' && !tourDone('dict')) startDictTour();
+      // }
     }
 
     // ===== 發聲（可選／按鈕觸發）=====
