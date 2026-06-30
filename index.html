@@ -674,6 +674,8 @@
 
     
     /* 懸浮按鈕 */
+    body.softkbd-open .jyutping-fab{ display:none !important; }
+
     .jyutping-fab {
       position: fixed; right: calc(-9px + env(safe-area-inset-right, 0px));
       bottom: calc(92px + env(safe-area-inset-bottom, 0px) + var(--softkbd-height) + var(--jyutping-fab-manual-y, 0px));
@@ -2003,8 +2005,24 @@
 
         rootEl.style.setProperty('--softkbd-height', kh + 'px');
 
-        if (kh > 80) body.classList.add('softkbd-open');
-        else body.classList.remove('softkbd-open');
+        if (kh > 80) {
+          body.classList.add('softkbd-open');
+          // 鍵盤開住：暫時收起近音掣，避免升上嚟遮住畫面
+          try {
+            const fab = document.getElementById('jyutpingFab');
+            if (fab) fab.style.display = 'none';
+          } catch(e) {}
+        } else {
+          body.classList.remove('softkbd-open');
+          // 鍵盤收起：如果仍然喺「查單字」頁、近音視窗冇開，就自動顯示返近音掣
+          try {
+            const fab = document.getElementById('jyutpingFab');
+            const panel = document.getElementById('jyutpingPanel');
+            const isDictPage = body.classList.contains('mode-dict-page') || !!document.querySelector('.app.mode-dict');
+            const panelOpen = panel && panel.classList.contains('open');
+            if (fab && isDictPage && !panelOpen) fab.style.display = 'flex';
+          } catch(e) {}
+        }
       }
 
       if (window.visualViewport) {
@@ -3101,7 +3119,7 @@ try {
         state._jySuppressHistory = true;
         render();
         setTimeout(() => {
-          try { window.__openJyutpingPanelWithQuery && window.__openJyutpingPanelWithQuery(state._jyReopenQuery, { suppressHistory:true, source: state._jyReopenSource }); } catch(err) {}
+          try { window.__openJyutpingPanelWithQuery && window.__openJyutpingPanelWithQuery(state._jyReopenQuery, { suppressHistory:true, source: state._jyReopenSource, fromHistoryReturn:true }); } catch(err) {}
         }, 0);
         return;
       }
@@ -4564,11 +4582,13 @@ try {
         dictInput.addEventListener('focus', (e) => {
           // 撳查單字大輸入框只應該開鍵盤，唔應該開「粵語同音字」視窗
           try { window.__closeJyutpingPanel && window.__closeJyutpingPanel(); } catch(err) {}
+          /* 近音掣交畀鍵盤偵測統一控制：鍵盤開先隱藏，收起自動顯示返 */
           e.target.select();
         });
         dictInput.addEventListener('click', () => {
           // 保險：就算之前視窗殘留 open，都喺撳輸入框時關返
           try { window.__closeJyutpingPanel && window.__closeJyutpingPanel(); } catch(err) {}
+          /* 近音掣交畀鍵盤偵測統一控制：鍵盤開先隱藏，收起自動顯示返 */
           if (!state.dictInput) return;
           state.dictInput = ''; render();
           setTimeout(() => {
@@ -4619,7 +4639,7 @@ try {
         } catch(e) {}
         async function openJyPanelWithQuery(forceQuery='', opts={}) {
           /* 只准由圓形「近音」掣開啟；避免撳查單字輸入框/彈鍵盤/history 時誤開 */
-          if (!opts || opts.fromFab !== true) return;
+          if (!opts || (opts.fromFab !== true && opts.fromHistoryReturn !== true)) return;
           try {
             // 先即時清空結果，避免見到上一次殘留內容（即使只係一瞬）
             try { if (jyResults) jyResults.innerHTML = '<div class="jyutping-empty">輸入中文開始查詢</div>'; } catch(e) {}
@@ -4673,7 +4693,7 @@ try {
       function resetJyPanel(){
         try { jyPanel && jyPanel.classList.remove('open'); } catch(e) {}
         if (jyBackdrop) { try { jyBackdrop.classList.remove('open'); } catch(e) {} }
-        if (jyFab && state.activeTab === 'dict' && !state.isTyping) {
+        if (jyFab && state.activeTab === 'dict' && !state.isTyping && !document.body.classList.contains('softkbd-open')) {
           jyFab.style.display = 'flex';
         }
         if (jyInput) {
@@ -5250,11 +5270,13 @@ try {
         dictInput.addEventListener('focus', (e) => {
           // 撳查單字大輸入框只應該開鍵盤，唔應該開「粵語同音字」視窗
           try { window.__closeJyutpingPanel && window.__closeJyutpingPanel(); } catch(err) {}
+          /* 近音掣交畀鍵盤偵測統一控制：鍵盤開先隱藏，收起自動顯示返 */
           e.target.select();
         });
         dictInput.addEventListener('click', () => {
           // 保險：就算之前視窗殘留 open，都喺撳輸入框時關返
           try { window.__closeJyutpingPanel && window.__closeJyutpingPanel(); } catch(err) {}
+          /* 近音掣交畀鍵盤偵測統一控制：鍵盤開先隱藏，收起自動顯示返 */
           if (!state.dictInput) return;
           state.dictInput = ''; render();
           setTimeout(() => {
@@ -5327,7 +5349,7 @@ try {
 
         async function openJyPanelWithQuery(forceQuery='', opts={}) {
           /* 只准由圓形「近音」掣開啟；避免撳查單字輸入框/彈鍵盤/history 時誤開 */
-          if (!opts || opts.fromFab !== true) return;
+          if (!opts || (opts.fromFab !== true && opts.fromHistoryReturn !== true)) return;
           try {
             try { if (jyResults) jyResults.innerHTML = '<div class="jyutping-empty">輸入中文開始查詢</div>'; } catch(e) {}
             jyPanel.classList.add('open');
@@ -5372,7 +5394,7 @@ try {
       function resetJyPanel(){
         try { jyPanel && jyPanel.classList.remove('open'); } catch(e) {}
         if (jyBackdrop) { try { jyBackdrop.classList.remove('open'); } catch(e) {} }
-        if (jyFab && !state.isTyping) jyFab.style.display = 'flex';
+        if (jyFab && !state.isTyping && !document.body.classList.contains('softkbd-open')) jyFab.style.display = 'flex';
         if (jyInput) { try { jyInput.value = ''; } catch(e) {} try { jyInput.blur && jyInput.blur(); } catch(e) {} }
         if (jyResults) { try { jyResults.innerHTML = '<div class="jyutping-empty">輸入中文開始查詢</div>'; } catch(e) {} }
       }
