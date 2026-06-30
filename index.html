@@ -541,8 +541,11 @@
     }
     .jyutping-backdrop.open{ opacity: 1; pointer-events: auto; }
 
-    body.softkbd-open .jyutping-panel { 
-      bottom: var(--softkbd-height); 
+    /* 重要：只喺「面板打開(open)」先上移避鍵盤。
+       否則（未 open）會因為 bottom 上移而露出半截。 */
+    body.softkbd-open .jyutping-panel{ bottom: 0; }
+    body.softkbd-open .jyutping-panel.open{ 
+      bottom: var(--softkbd-height);
       max-height: calc(100dvh - var(--softkbd-height) - 10px);
     }
     .jyutping-header { 
