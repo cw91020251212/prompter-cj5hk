@@ -18,6 +18,19 @@
     :root{
       --softkbd-height: 0px;
       --ui-scale: 1.15;
+
+      /* ===== 開機畫面背景（提詞機：藍灰；查單字：墨綠） =====
+         目標：上半部偏淺、下半部更深，而且背景固定唔跟內容走。
+         註：畫面本身係 .content 內部滾動，所以背景放喺 .app 就會固定。
+      */
+      --bg-prompter: 
+        linear-gradient(180deg, #4b5a72 0%, #2b4686 42%, #16243b 100%),
+        radial-gradient(1200px 720px at 50% 120%, rgba(59,130,246,0.55) 0%, rgba(59,130,246,0.00) 60%),
+        radial-gradient(900px 520px at 20% 112%, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0) 55%),
+        radial-gradient(900px 520px at 80% 112%, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0) 55%);
+
+      /* 噪點（相片感）：為免手機卡頓，暫時停用 */
+      --noise-svg: none;
     }
     body {
       background: #0f172a;
@@ -35,7 +48,13 @@
       max-width: 100%;
       height: 100%;
       max-height: 100%;
-      background: #1e293b;
+
+      /* 開機畫面：固定漸變背景（提詞機預設） */
+      background: var(--bg-prompter);
+      background-repeat: no-repeat;
+      background-size: cover;
+      background-position: center top;
+
       border-radius: 0;
       border: 0;
       box-shadow: none;
@@ -47,6 +66,11 @@
       padding-left: env(safe-area-inset-left, 0px);
       padding-right: env(safe-area-inset-right, 0px);
     }
+
+    /* 噪點層（相片感）：為免手機卡頓，暫時停用 */
+    .app::before{ content: none; }
+
+    /* Tabs 透底：畀漸變透出少少（唔會影響字清晰度） */
     /* 窄螢幕：維持原有 100vw/100vh */
     @media (max-width: 767px) {
       .app { width: 100vw; max-width: 100vw; height: 100vh; max-height: 100vh; }
@@ -66,12 +90,12 @@
     .status-banner button:hover, .status-banner label:hover { background: #3b82f6; }
     .status-banner input[type="file"] { display: none; }
     
-    .tabs { display: flex; background: #0f172a; border-bottom: 2px solid #334155; flex-shrink: 0; }
+    .tabs { display: flex; background: rgba(15,23,42,0.45); border-bottom: 2px solid rgba(148,163,184,0.35); flex-shrink: 0; backdrop-filter: blur(8px); }
     .tabs button {
       flex: 1; padding: 18px 0; font-size: calc(1.25rem * var(--ui-scale)); font-weight: 800; background: transparent; border: none;
       color: #64748b; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 10px; border-bottom: 4px solid transparent;
     }
-    .tabs button.active { color: #60a5fa; border-bottom-color: #3b82f6; background: #1e293b; }
+    .tabs button.active { color: #e2e8f0; border-bottom-color: rgba(96,165,250,0.85); background: rgba(30,41,59,0.28); }
     .tabs button:hover { color: #e2e8f0; }
 
     /* 提詞機頁：右邊「查單字」按鈕改綠色（未 active 亦顯示） */
@@ -95,7 +119,8 @@
     /* 從你提供的 dict_B_墨綠 參考圖抽取並微調：#0b2a27 / #071a18 / #1848d8 */
     body.mode-dict-page{
       --dict-bg: #0b2a27;
-      --dict-bg2: #071a18;
+      /* 底部改用提詞機灰藍（由你指定：下灰藍，上保留綠） */
+      --dict-bg2: #2b4686;
       --dict-surface: rgba(0, 24, 24, 0.72);
       --dict-surface2: rgba(0, 16, 16, 0.82);
       --dict-border: rgba(160, 220, 210, 0.22);
@@ -109,9 +134,16 @@
     }
 
     .app.mode-dict{
-      background: linear-gradient(180deg, var(--dict-bg) 0%, var(--dict-bg2) 100%);
+      /* 查單字：背景改成同「提詞機」一致灰藍漸變（其他綠色元素保留） */
+      background: var(--bg-prompter);
+      background-repeat: no-repeat;
+      background-size: cover;
+      background-position: center top;
       color: var(--dict-text);
     }
+
+    /* 查單字模式下 Tabs（窄螢幕通常唔顯示，但保險） */
+    .app.mode-dict .tabs{ background: rgba(0,24,24,0.40); border-bottom-color: rgba(160, 220, 210, 0.22); }
 
     .app.mode-dict .content{ background: transparent; }
 
@@ -259,11 +291,47 @@
     @keyframes textBlink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
 
     .btn-primary {
-      width: 100%; padding: 20px; margin-top: 18px; background: #2563eb; border: none; border-radius: 18px; color: white;
-      font-weight: 900; font-size: calc(1.35rem * var(--ui-scale)); display: flex; align-items: center; justify-content: center; gap: 12px; box-shadow: 0 6px 0 #1e3a8a; transition: all 0.08s linear; cursor: pointer;
+      width: 100%;
+      padding: 20px;
+      margin-top: 18px;
+
+      /* 開始掣：改回「低調」— 只留少少漸變 + 少少陰影 */
+      background: linear-gradient(to bottom, #3b82f6 0%, #2563eb 100%);
+      border: 1px solid rgba(255,255,255,0.14);
+      border-radius: 18px;
+      color: rgba(255,255,255,0.98);
+
+      font-weight: 900;
+      font-size: calc(1.35rem * var(--ui-scale));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+
+      /* 最少立體感：細細條底影 + 少少投影 */
+      box-shadow:
+        0 6px 0 rgba(30,58,138,0.92),
+        0 14px 26px rgba(0,0,0,0.22);
+
+      transition: transform 0.08s linear, box-shadow 0.08s linear, filter 0.12s ease;
+      cursor: pointer;
     }
-    .btn-primary:active { transform: translateY(4px); box-shadow: 0 2px 0 #1e3a8a; }
-    .btn-primary:disabled { opacity: 0.4; transform: none; box-shadow: 0 6px 0 #1e3a8a; cursor: not-allowed; }
+    .btn-primary:hover{ filter: brightness(1.03); }
+    .btn-primary:active {
+      transform: translateY(3px);
+      box-shadow:
+        0 3px 0 rgba(30,58,138,0.92),
+        0 10px 18px rgba(0,0,0,0.22);
+    }
+    .btn-primary:disabled {
+      opacity: 0.45;
+      transform: none;
+      cursor: not-allowed;
+      filter: grayscale(0.12);
+      box-shadow:
+        0 6px 0 rgba(30,58,138,0.92),
+        0 10px 18px rgba(0,0,0,0.16);
+    }
     
     .drafts { margin-top: 24px; border-top: 1px solid #334155; padding-top: 20px; }
     .drafts h3 { font-size: 0.9rem; color: #94a3b8; display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
@@ -494,11 +562,74 @@
     .jyutping-input:focus { border-color: #3b82f6; }
 
     /* 粵語同音字（NEW v20260626） */
-    .jyutping-actions{ display:flex; flex-wrap: wrap; gap:8px; padding: 0 16px 12px; background: #1e293b; flex-shrink: 0; }
-    .jyutping-actions button{ flex: 1 1 calc(50% - 8px); padding:14px 14px; border-radius: 14px; border:1px solid #334155; background: rgba(255,255,255,0.06); color:#e2e8f0; font-weight: 950; cursor:pointer; font-size: 1.15rem; }
-    .jyutping-actions button.primary{ background:#2563eb; border-color:#3b82f6; box-shadow: 0 4px 0 #1e3a8a; }
-    .jyutping-actions button.primary:active{ transform: translateY(3px); box-shadow: 0 1px 0 #1e3a8a; }
-    .jyutping-actions button:active{ transform: translateY(1px); }
+    /* 粵語同音字：四個功能鍵改「水平一行」+ 更醒目配色 */
+    .jyutping-actions{
+      --jy-actions-scale: 0.88;
+      --jy-actions-height-scale: 0.72; /* ✅ 只壓縮「高度」：扁身長方形 */
+      display:flex;
+      flex-wrap: nowrap;
+      gap:8px;
+      padding: 0 16px 10px;
+      background: #1e293b;
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+
+    .jyutping-actions button{
+      flex: 1 1 0;
+      min-width: 0;
+
+      /* 只壓縮高度（唔縮闊度） */
+      min-height: calc(68px * var(--jy-actions-scale) * var(--jy-actions-height-scale));
+      padding: calc(10px * var(--jy-actions-scale) * var(--jy-actions-height-scale)) calc(4px * var(--jy-actions-scale));
+
+      /* 扁身通常圓角都可以細少少，更似長方形 */
+      border-radius: calc(16px * var(--jy-actions-scale) * 0.85);
+
+      border: 1px solid rgba(255,255,255,0.22);
+      background: rgba(255,255,255,0.08);
+      color: #0b1220;
+      font-weight: 1000;
+      cursor:pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      /* 字體維持你話「比例啱」嗰個感覺：唔跟高度縮得咁狠 */
+      font-size: clamp(
+        calc(1.45rem * var(--jy-actions-scale)),
+        calc(7.6vw * var(--jy-actions-scale)),
+        calc(2.40rem * var(--jy-actions-scale))
+      );
+      line-height: 1.0;
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+      word-break: normal;
+      box-shadow:
+        0 10px 18px rgba(0,0,0,0.20),
+        inset 0 1px 0 rgba(255,255,255,0.45);
+    }
+
+    /* 逐粒鍵分色：避免同其他「撳音字」按鈕撞色 */
+    #jyutpingClearBtn{
+      background: linear-gradient(180deg, #ffd1dc 0%, #ff9fb5 100%); /* 粉紅 */
+      border-color: rgba(255, 159, 181, 0.75);
+    }
+    #jyutpingRegionBtn{
+      background: linear-gradient(180deg, #c8f7e6 0%, #6ee7b7 100%); /* 粉綠 */
+      border-color: rgba(110, 231, 183, 0.70);
+    }
+    #jyutpingScriptBtn{
+      background: linear-gradient(180deg, #e9d5ff 0%, #c4b5fd 100%); /* 粉紫 */
+      border-color: rgba(196, 181, 253, 0.75);
+    }
+    #jyutpingSelfTestBtn{
+      background: linear-gradient(180deg, #bfdbfe 0%, #60a5fa 100%); /* 粉藍 */
+      border-color: rgba(96, 165, 250, 0.80);
+    }
+
+    .jyutping-actions button:active{ transform: translateY(1px); box-shadow: 0 6px 12px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.35); }
+
     .jyutping-charhead{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom: 8px; }
     .jyutping-source{ font-size: 2.4rem; font-weight: 800; color:#f8fafc; letter-spacing: 0.02em; }
     .jyutping-pys{ display:flex; flex-wrap:wrap; gap:6px; justify-content:flex-end; }
@@ -1036,11 +1167,51 @@
       align-items: center;
       justify-content: center;
       cursor: pointer;
+      position: relative;
     }
     #prompterClearBtn svg{ width: 28px; height: 28px; display:block; }
     #prompterClearBtn svg *{ fill: currentColor; stroke: none; }
     #prompterClearBtn:active{ opacity: 0.85; transform: translateY(1px) scale(0.97); }
     #prompterClearBtn:disabled{ opacity: 0.55; cursor: not-allowed; color: #64748b; }
+
+    /* 清除動畫：掃把左右掃（好快），畀你感覺「有做緊嘢」 */
+    #prompterClearBtn.is-sweeping svg{
+      animation: broomSweep 0.18s ease-in-out infinite alternate;
+      transform-origin: 50% 60%;
+    }
+
+    /* 掃把擦過拖尾（好輕微，不影響逐格消失速度） */
+    #prompterClearBtn.is-sweeping::after{
+      content:"";
+      position:absolute;
+      left:50%;
+      top:50%;
+      width: 44px;
+      height: 18px;
+      transform: translate(-50%,-50%);
+      pointer-events:none;
+      border-radius: 999px;
+      background: linear-gradient(90deg,
+        rgba(255,255,255,0.00) 0%,
+        rgba(255,255,255,0.20) 30%,
+        rgba(255,255,255,0.10) 55%,
+        rgba(255,255,255,0.00) 100%
+      );
+      filter: blur(7px);
+      opacity: 0.55;
+      animation: broomTrail 0.18s ease-in-out infinite alternate;
+    }
+
+    @keyframes broomSweep{
+      from{ transform: translateX(-3px) rotate(-10deg); }
+      to  { transform: translateX( 3px) rotate(  8deg); }
+    }
+    @keyframes broomTrail{
+      from{ transform: translate(-50%,-50%) translateX(-7px) rotate(-2deg); opacity: 0.42; }
+      to  { transform: translate(-50%,-50%) translateX( 7px) rotate( 2deg); opacity: 0.58; }
+    }
+
+    .prompter-area.is-clearing #inputTextArea{ opacity: 0.96; }
 
     /* 提詞機：教學按鈕（燈泡更易見） */
     .prompter-help-btn{
@@ -1394,8 +1565,8 @@
 		  </div>
 			  <div class="jyutping-actions">
 			    <button id="jyutpingClearBtn">清空</button>
-			    <button id="jyutpingRegionBtn" title="切換拼音習慣（香港/大陸）">地區: 香港</button>
-			    <button id="jyutpingScriptBtn" title="切換繁/簡顯示">顯示: 繁+簡</button>
+			    <button id="jyutpingRegionBtn" title="切換拼音習慣（香港/大陸）">香港</button>
+			    <button id="jyutpingScriptBtn" title="切換繁/簡顯示">繁簡</button>
 			    <button id="jyutpingSelfTestBtn" class="primary">自檢</button>
 			  </div>
 		  <div id="jyutpingResults" class="jyutping-results">
@@ -3710,6 +3881,74 @@ try {
       } catch(e) {}
     }
 
+    /* 提詞機：清除輸入動畫（由尾開始快速消失 + 掃把左右掃） */
+    async function animatePrompterClear(textarea, updateFn){
+      try {
+        if (state._isPrompterClearing) return;
+        const original = String(textarea?.value || '');
+        if (!original.trim()) {
+          if (textarea) textarea.value = '';
+          state.inputText = '';
+          try { updateFn && updateFn(); } catch(e) {}
+          return;
+        }
+
+        state._isPrompterClearing = true;
+
+        const clearBtn = document.getElementById('prompterClearBtn');
+        const area = textarea?.closest ? textarea.closest('.prompter-area') : null;
+
+        try { clearBtn && (clearBtn.disabled = true); } catch(e) {}
+        try { clearBtn && clearBtn.classList.add('is-sweeping'); } catch(e) {}
+        try { area && area.classList.add('is-clearing'); } catch(e) {}
+
+        // 防止清除中途再輸入
+        try { textarea && (textarea.readOnly = true); } catch(e) {}
+
+        const total = original.length;
+
+        // 由尾到頭「逐格」消失：一般情況 step=1。
+        // 為免超長文章清除太耐，最多大約 240 格（仍然係逐步消失，只係長文會一格清多幾個字）
+        const maxFrames = 240;
+        const step = Math.max(1, Math.ceil(total / maxFrames));
+
+        // 速度：比之前慢（唔好過快）。
+        // total 越短，每格停留越耐；total 越長，就自動加快少少避免等太耐。
+        const denom = Math.min(total, maxFrames) || 1;
+        const delayMs = Math.max(16, Math.min(34, Math.round(1800 / denom)));
+
+        for (let i = total; i >= 0; i -= step) {
+          textarea.value = original.slice(0, i);
+          state.inputText = textarea.value;
+          try { updateFn && updateFn(); } catch(e) {}
+          await new Promise(r => setTimeout(r, delayMs));
+        }
+
+        textarea.value = '';
+        state.inputText = '';
+        try { updateFn && updateFn(); } catch(e) {}
+
+        try { textarea && (textarea.readOnly = false); } catch(e) {}
+        try { textarea && textarea.focus(); } catch(e) {}
+
+        try { localStorage.removeItem('prompterAutoDraft'); } catch(e) {}
+        try { showToast && showToast('已清除'); } catch(e) {}
+
+        try { clearBtn && clearBtn.classList.remove('is-sweeping'); } catch(e) {}
+        try { area && area.classList.remove('is-clearing'); } catch(e) {}
+
+        state._isPrompterClearing = false;
+      } catch (err) {
+        // fallback：出事就即刻清
+        try { if (textarea) textarea.value = ''; } catch(e) {}
+        state.inputText = '';
+        try { updateFn && updateFn(); } catch(e) {}
+        try { showToast && showToast('已清除'); } catch(e) {}
+        try { localStorage.removeItem('prompterAutoDraft'); } catch(e) {}
+        state._isPrompterClearing = false;
+      }
+    }
+
     // 判斷係唔係寬螢幕雙欄模式
     function isWideLayout() {
       return window.innerWidth >= 768;
@@ -4218,14 +4457,9 @@ try {
 
         const clearBtn = document.getElementById('prompterClearBtn');
         if (clearBtn) {
-          clearBtn.addEventListener('click', (e)=>{
+          clearBtn.addEventListener('click', async (e)=>{
             e.preventDefault();
-            textarea.value = '';
-            state.inputText = '';
-            updateStartBtnState();
-            try { textarea.focus(); } catch(err) {}
-            try { showToast && showToast('已清除'); } catch(err) {}
-            localStorage.removeItem('prompterAutoDraft');
+            await animatePrompterClear(textarea, updateStartBtnState);
           });
         }
         const prompterSaveBtn = document.getElementById('prompterSaveBtn');
@@ -4490,6 +4724,20 @@ try {
         });
       }
 
+      function updateJyRegionBtnText(){
+        if (!jyRegionBtn) return;
+        try {
+          if (window.HKHomophones && typeof window.HKHomophones.getRegion === 'function') {
+            const r = window.HKHomophones.getRegion();
+            jyRegionBtn.innerText = (r === 'CN') ? '大陸' : '香港';
+            return;
+          }
+        } catch(e) {}
+        // fallback
+        jyRegionBtn.innerText = '香港';
+      }
+      updateJyRegionBtnText();
+
       if (jyRegionBtn && !jyRegionBtn.dataset.bound) {
         jyRegionBtn.dataset.bound = '1';
         jyRegionBtn.addEventListener('click', () => {
@@ -4497,7 +4745,7 @@ try {
           const current = window.HKHomophones.getRegion();
           const next = current === 'HK' ? 'CN' : 'HK';
           window.HKHomophones.setRegion(next);
-          jyRegionBtn.innerText = `地區: ${next === 'HK' ? '香港' : '大陸'}`;
+          updateJyRegionBtnText();
           // 重新觸發查詢以套用新規則
           try { window.__performJyHomophoneSearch && window.__performJyHomophoneSearch(); } catch(e) {}
         });
@@ -4518,7 +4766,7 @@ try {
       function updateJyScriptBtnText(){
         if (!jyScriptBtn) return;
         const m = state.jyScriptMode || 'both';
-        jyScriptBtn.innerText = (m === 'trad') ? '顯示: 繁體' : (m === 'simp') ? '顯示: 簡體' : '顯示: 繁+簡';
+        jyScriptBtn.innerText = (m === 'trad') ? '繁體' : (m === 'simp') ? '簡體' : '繁+簡';
       }
       updateJyScriptBtnText();
 
@@ -4894,14 +5142,9 @@ try {
 
         const clearBtn = document.getElementById('prompterClearBtn');
         if (clearBtn) {
-          clearBtn.addEventListener('click', (e) => {
+          clearBtn.addEventListener('click', async (e) => {
             e.preventDefault();
-            textarea.value = '';
-            state.inputText = '';
-            updateStartBtnState();
-            try { textarea.focus(); } catch(err) {}
-            try { showToast && showToast('已清除'); } catch(err) {}
-            localStorage.removeItem('prompterAutoDraft');
+            await animatePrompterClear(textarea, updateStartBtnState);
           });
         }
         const prompterSaveBtn = document.getElementById('prompterSaveBtn');
@@ -5165,7 +5408,7 @@ try {
           const current = window.HKHomophones.getRegion();
           const next = current === 'HK' ? 'CN' : 'HK';
           window.HKHomophones.setRegion(next);
-          jyRegionBtn.innerText = `地區: ${next === 'HK' ? '香港' : '大陸'}`;
+          jyRegionBtn.innerText = `${next === 'HK' ? '香港' : '大陸'}`;
           try { window.__performJyHomophoneSearch && window.__performJyHomophoneSearch(); } catch(e) {}
         });
       }
@@ -5180,7 +5423,7 @@ try {
       function updateJyScriptBtnText(){
         if (!jyScriptBtn) return;
         const m = state.jyScriptMode || 'both';
-        jyScriptBtn.innerText = (m === 'trad') ? '顯示: 繁體' : (m === 'simp') ? '顯示: 簡體' : '顯示: 繁+簡';
+        jyScriptBtn.innerText = (m === 'trad') ? '繁體' : (m === 'simp') ? '簡體' : '繁簡';
       }
       updateJyScriptBtnText();
 
