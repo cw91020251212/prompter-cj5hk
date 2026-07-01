@@ -1593,7 +1593,7 @@
 			  <div class="jyutping-actions">
 			    <button id="jyutpingClearBtn">清空</button>
 			    <button id="jyutpingRegionBtn" title="切換拼音習慣（香港/大陸）">香港</button>
-			    <button id="jyutpingScriptBtn" title="切換繁/簡顯示">繁簡</button>
+			    <button id="jyutpingScriptBtn" title="切換繁/簡顯示">繁+簡</button>
 			    <button id="jyutpingSelfTestBtn" class="primary">自檢</button>
 			  </div>
 		  <div id="jyutpingResults" class="jyutping-results">
@@ -5493,7 +5493,7 @@ try {
       function updateJyScriptBtnText(){
         if (!jyScriptBtn) return;
         const m = state.jyScriptMode || 'both';
-        jyScriptBtn.innerText = (m === 'trad') ? '繁體' : (m === 'simp') ? '簡體' : '繁簡';
+        jyScriptBtn.innerText = (m === 'trad') ? '繁體' : (m === 'simp') ? '簡體' : '繁+簡';
       }
       updateJyScriptBtnText();
 
@@ -6380,10 +6380,14 @@ try {
       let loadingPromise = null;
       let region = 'HK'; // 預設香港地區
 
-      // —— 粵語口語常用字（補強：一般普通話字頻表未必包晒）——
-      // 註：呢度只係排序用嘅優先清單；唔會影響你查到嘅字。
+      // —— 香港常用字、姓氏、地名優先權重表 ——
       const CANTO_COMMON_CHARS = [
-        '我','你','佢','唔','喺','咩','嘅','哋','啲','咗','嗰','呢','咁','冇','嚟','係','就','都','仲','同','得','好','啦','呀','喎','嘢','點','做','未','會','要','無','有','去','返','入','出','睇','聽','講','食','飲','諗','想','知','咪','緊','喇','囉','啫','啱','過','再','先','喂'
+        // 核心口語
+        '我','你','佢','唔','喺','咩','嘅','哋','啲','咗','嗰','呢','咁','冇','嚟','係','就','都','仲','同','得','好','啦','呀','喎','嘢','點','做','未','會','要','無','有','去','返','入','出','睇','聽','講','食','飲','諗','想','知','咪','緊','喇','囉','啫','啱','過','再','先','喂',
+        // 香港常見姓氏
+        '陳','林','李','張','黃','何','吳','劉','蔡','曾','葉','許','孫','鄧','謝','高','程','曹','蘇','潘','袁','馮','郭','羅','梁','宋','鄭','韓','唐','馮','于','董','蕭','蕭','余','潘','杜','阮','藍','鍾','江','黎','方','金','陸','夏','汪','姚','毛','江','蔣','邱','史','顧','侯','邵','孟','龍','萬','段','錢','湯','尹','黎','易','常','武','喬','賀','賴','龔','文','秦','駿','進','珍','真',
+        // 香港地名/地圖常用字
+        '灣','角','埔','涌','墟','圍','嶺','洲','島','石','湖','山','水','坑','徑','道','街','里','坊','咀','嘴','坪','坳','肚','窩','台','港','村','田','園','林','大','小','長','深','沙','火','炭','青','葵','涌','藍','田','彩','虹','牛','頭','角','九','龍','觀','塘','將','軍','澳','西','貢','屯','門','元','朗','天','水','圍','北','區','粉','嶺','上','水','大','埔','沙','田','馬','鞍','山','西','環','中','環','上','環','金','鐘','灣','仔','銅','鑼','灣','天','后','炮','台','山','北','角','鰂','魚','湧','太','古','西','灣','河','筲','箕','灣','柴','灣','杏','花','邨'
       ];
       const CANTO_PRI = Object.create(null);
       for (let i = 0; i < CANTO_COMMON_CHARS.length; i++) {
@@ -6541,15 +6545,17 @@ try {
       function sortCharsByCommonness(list) {
         const arr = (list || []).slice();
         arr.sort((a, b) => {
-          // 新增：繁簡排序邏輯
-          // 繁體優先 (isSimplified 返回 false 的排前面)
+          // 1. 優先考慮權重排名 (CANTO_PRI)
+          const ra = commonnessRank(a);
+          const rb = commonnessRank(b);
+          if (ra !== rb) return ra - rb;
+
+          // 2. 權重相同時，繁體優先
           const sa = isSimplified(a) ? 1 : 0;
           const sb = isSimplified(b) ? 1 : 0;
           if (sa !== sb) return sa - sb;
 
-          const ra = commonnessRank(a);
-          const rb = commonnessRank(b);
-          if (ra !== rb) return ra - rb;
+          // 3. 最後按筆劃/拼音排序
           try { return a.localeCompare(b, 'zh-HK'); } catch (e) { return String(a).localeCompare(String(b)); }
         });
         return arr;
@@ -6651,60 +6657,133 @@ try {
         return s;
       }
 
-      // 英文粵拼 → 同音字（支援 prefix 搜尋）
+      // 系統化港式拼音轉換 (HKG -> Jyutping)
+      function convertHkgToJyutping(hkg) {
+        const s = String(hkg || '').toLowerCase().trim();
+        if (!s) return [];
+        
+        // 1. 處理聲母 (HKG -> Jyutping 可能的聲母)
+        const INITIAL_MAP = {
+          'ch': ['z', 'c'], 'ts': ['z', 'c'], 'sh': ['s'], 'kw': ['gw', 'kw'],
+          'p': ['b', 'p'], 't': ['d', 't'], 'k': ['g', 'k'],
+          'f': ['f'], 'm': ['m'], 'n': ['n'], 'l': ['l'], 'h': ['h'],
+          'y': ['j'], 'w': ['w'], 'ng': ['ng'], 's': ['s']
+        };
+        
+        // 2. 處理韻母 (HKG -> Jyutping 可能的韻母)
+        const FINAL_MAP = {
+          'ae': ['aai'], 'ai': ['aai', 'ai'], 'au': ['aau', 'au'], 'am': ['aam', 'am'], 'an': ['aan', 'an'],
+          'ang': ['aang', 'ang'], 'ap': ['aap', 'ap'], 'at': ['aat', 'at'], 'ak': ['aak', 'ak'],
+          'e': ['e', 'ei'], 'ei': ['ei'], 'i': ['i', 'ei'], 'iu': ['iu'], 'im': ['im'], 'in': ['in'],
+          'ing': ['ing'], 'ip': ['ip'], 'it': ['it'], 'ik': ['ik'], 'o': ['o', 'ou'], 'oi': ['oi'],
+          'ou': ['ou'], 'on': ['on'], 'ong': ['ong'], 'ot': ['ot'], 'ok': ['ok'], 'u': ['u', 'ou'],
+          'ui': ['eoi', 'ui'], 'un': ['un', 'jyun'], 'ung': ['ung'], 'ut': ['ut', 'jyut'], 'uk': ['uk'],
+          'ue': ['yu', 'jyun'], 'uen': ['jyun'], 'uet': ['jyut'], 'eung': ['oeng'], 'euk': ['oek'],
+          'hui': ['heoi'], 'chun': ['ceon', 'zeon'], 'shun': ['seon', 'zeon'], 'tan': ['taan']
+        };
+
+        // 3. 特殊拼法替換
+        let normalized = s.replace(/oo/g, 'u').replace(/ee/g, 'i');
+        if (normalized.startsWith('y') && normalized.length > 1) {
+          // 如 Yin -> in
+          normalized = normalized.substring(1);
+          if (!normalized.startsWith('u')) normalized = 'i' + normalized;
+        }
+        if (normalized.startsWith('kwu')) normalized = 'ku' + normalized.substring(3);
+        
+        // 嘗試拆分聲母同韻母
+        let matchedInitial = '';
+        let matchedFinal = '';
+        
+        // 優先匹配長聲母
+        const initials = ['ch', 'ts', 'sh', 'kw', 'ng', 'p', 't', 'k', 'f', 'm', 'n', 'l', 'h', 'y', 'w', 's'];
+        for (const i of initials) {
+          if (normalized.startsWith(i)) {
+            matchedInitial = i;
+            matchedFinal = normalized.substring(i.length);
+            break;
+          }
+        }
+        
+        if (!matchedInitial) matchedFinal = normalized;
+        
+        const jyInitials = INITIAL_MAP[matchedInitial] || [matchedInitial];
+        const jyFinals = FINAL_MAP[matchedFinal] || [matchedFinal];
+        
+        const results = [];
+        for (const ji of jyInitials) {
+          for (const jf of jyFinals) {
+            results.push(ji + jf);
+          }
+        }
+        
+        // 加入一些無法通過規則轉換的 hardcode 映射
+        const HARDCODE = {
+          'hui': ['heoi'], 'chun': ['ceon', 'zeon'], 'tan': ['taan'], 'lee': ['lei'], 'leung': ['loeng'],
+          'yeung': ['joeng'], 'wong': ['wong'], 'chan': ['can'], 'li': ['lei'], 'ng': ['ng'],
+          'wu': ['wu', 'ng'], 'ying': ['jing'], 'law': ['lo'], 'sheung': ['soeng'], 'tung': ['tung'],
+          'sin': ['sin'], 'ping': ['ping'], 'suen': ['syun'], 'choi': ['coi'], 'kwok': ['gwok'],
+          'hung': ['hung'], 'fan': ['faan'], 'kam': ['gam'], 'po': ['bou', 'pou'], 'chui': ['ceoi'],
+          'yip': ['jip'], 'ching': ['cing', 'zing'], 'ka': ['ga', 'kaa'], 'kiu': ['kiu'], 'man': ['man'],
+          'shun': ['seon', 'zeon'], 'tak': ['dak'], 'wing': ['wing'], 'yuet': ['jyut'], 'yuk': ['juk']
+        };
+        if (HARDCODE[s]) {
+          for (const h of HARDCODE[s]) if (!results.includes(h)) results.push(h);
+        }
+        
+        return Array.from(new Set(results));
+      }
+
+      // 英文拼音 → 同音字（支援港式拼音系統化轉換）
       function searchByPinyin(input, { limitPerReading = 180, maxGroups = 20 } = {}) {
         const raw = normalizePinyinQuery(input);
         if (!raw || !dict) return [];
 
-        const ALIAS = {
-          ying: 'jing',
-          law: 'lo',
-          ho: 'hou',
-          cheung: 'zoeng',
-          shing: 'sing',
-          tsui: 'ceoi',
-          kwun: 'gwun',
-          wan: 'waan',
-          lai: 'lai',
-          mei: 'mei',
-          tai: 'taai'
-        };
-        let q = ALIAS[raw] || raw;
+        // 1. 獲取所有可能的粵拼目標
+        let targets = convertHkgToJyutping(raw);
+        if (raw === 'wu' && region === 'CN') targets = ['ng'];
+        if (!targets.includes(raw)) targets.push(raw); // 保留原始輸入作為候選
 
-        if (q === 'wu' && region === 'CN') {
-          q = 'ng'; 
-        }
-
-        const usedAlias = (q !== raw);
         const keys = Object.keys(dict.pinyin_to_chars || {});
-        const matched = keys
-          .filter(k => k === q || k.startsWith(q))
-          .sort((a, b) => {
-            if (a === q && b !== q) return -1;
-            if (b === q && a !== q) return 1;
-            return a.length - b.length || a.localeCompare(b);
-          })
-          .slice(0, maxGroups);
+        const results = [];
+        const seenPinyins = new Set();
 
-        return matched.map(py => {
-          const categories = categorizeHomophones(py, null, limitPerReading);
-          // 如果是用戶輸入的拼音近似，則將其標記為「港式拼音近似」
-          if (usedAlias) {
-            const homophones = categories['同音字'] || [];
-            categories['港式拼音近似'] = [...homophones];
-            categories['同音字'] = [];
+        for (const q of targets) {
+          const matched = keys
+            .filter(k => k === q || k.startsWith(q))
+            .sort((a, b) => {
+              if (a === q && b !== q) return -1;
+              if (b === q && a !== q) return 1;
+              return a.length - b.length || a.localeCompare(b);
+            })
+            .slice(0, maxGroups);
+
+          for (const py of matched) {
+            if (seenPinyins.has(py)) continue;
+            seenPinyins.add(py);
+
+            const categories = categorizeHomophones(py, null, limitPerReading);
+            // 判斷是否為「近似」：如果粵拼唔等於原始輸入，就係近似
+            const isApprox = (py !== raw);
+            
+            if (isApprox) {
+              const homophones = categories['同音字'] || [];
+              categories['港式拼音近似'] = [...homophones];
+              categories['同音字'] = [];
+            }
+            
+            results.push({
+              sourceChar: isApprox ? raw : py,
+              pinyins: [{ 
+                pinyin: isApprox ? `${py}（粵拼 / Jyutping）` : py, 
+                chars: categories['同音字'] || [],
+                categories: categories
+              }],
+              missing: false
+            });
           }
-          
-          return {
-            sourceChar: usedAlias ? raw : py,
-            pinyins: [{ 
-              pinyin: usedAlias ? `${py}（粵拼 / Jyutping）` : py, 
-              chars: categories['同音字'] || [],
-              categories: categories
-            }],
-            missing: false
-          };
-        });
+        }
+        return results;
       }
 
       // 主要查詢：中文（可多字）→ 每個字分組列出讀音 + 同音字
@@ -6747,10 +6826,10 @@ try {
         
         const allPinyins = Object.keys(dict.pinyin_to_chars || {});
         const categories = {
+          '港式拼音近似': [],
           '同音字': getHomophones(py, protagonistChar, limit),
           '聲母相近': [],
           '韻母相近': [],
-          '港式拼音近似': [],
           '香港地名常見': []
         };
 
@@ -6758,20 +6837,27 @@ try {
         
         const seenChars = new Set(categories['同音字']);
         
-        // 港式拼音近似映射 (簡單版)
-        const HK_PY_MAP = {
-          'ho': ['ho', 'hou'],
-          'cheung': ['zoeng', 'coeng'],
-          'shing': ['sing', 'zeng'],
-          'tsui': ['ceoi'],
-          'kwun': ['gwun', 'kun'],
-          'wan': ['waan', 'wan'],
-          'lai': ['lai'],
-          'mei': ['mei'],
-          'tai': ['taai', 'tai']
+        // 港式拼音近似映射 (內部映射，用於中文查近音時的推薦)
+        const JYUT_TO_HK_FUZZY = {
+          'heoi': ['hui', 'chui'], 'ho': ['ho'], 'hou': ['ho'], 'lei': ['lee', 'li'],
+          'loeng': ['leung'], 'joeng': ['yeung'], 'can': ['chan'], 'ceoi': ['tsui', 'chui'],
+          'zoeng': ['cheung'], 'coeng': ['cheung'], 'sing': ['shing'], 'zeng': ['shing'],
+          'gwun': ['kwun'], 'waan': ['wan'], 'taai': ['tai'], 'taan': ['tan'],
+          'ceon': ['chun'], 'zeon': ['chun', 'shun'], 'cing': ['ching'], 'zing': ['ching']
         };
 
+        const fuzzyTargets = new Set();
+        const pyNoTone = py.replace(/[1-6]$/, '');
+        if (JYUT_TO_HK_FUZZY[pyNoTone]) {
+          const hks = JYUT_TO_HK_FUZZY[pyNoTone];
+          for (const hk of hks) {
+            const relatedPys = convertHkgToJyutping(hk);
+            for (const rpy of relatedPys) if (rpy !== pyNoTone) fuzzyTargets.add(rpy);
+          }
+        }
+
         for (const p of allPinyins) {
+          const pNoTone = p.replace(/[1-6]$/, '');
           const m = p.match(/^([bpmfdtnlgknhwzcsj]|ng|gw|kw)?([aeiouy][a-z]*)([1-6])?$/);
           if (!m) continue;
           const pInitial = m[1] || '';
@@ -6794,6 +6880,16 @@ try {
             for (const c of chars) {
               if (!seenChars.has(c)) {
                 categories['韻母相近'].push(c);
+                seenChars.add(c);
+              }
+            }
+          }
+
+          // 3. 港式拼音近似 (基於映射表)
+          if (fuzzyTargets.has(pNoTone) && p !== py) {
+            for (const c of chars) {
+              if (!seenChars.has(c)) {
+                categories['港式拼音近似'].push(c);
                 seenChars.add(c);
               }
             }
