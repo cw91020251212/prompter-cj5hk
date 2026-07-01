@@ -3536,33 +3536,69 @@ try {
 
     function pickCantoneseVoice(){
       try {
-        const voices = window.speechSynthesis ? window.speechSynthesis.getVoices() : [];
+        if (!window.speechSynthesis) return null;
+        const voices = window.speechSynthesis.getVoices();
         if (!voices || !voices.length) return null;
         
-        // 優先級排序：zh-HK > yue > name包含廣東話/粵語
-        const sorted = voices.slice().sort((a, b) => {
-          const la = String(a.lang||'').toLowerCase();
-          const lb = String(b.lang||'').toLowerCase();
-          const na = String(a.name||'').toLowerCase();
-          const nb = String(b.name||'').toLowerCase();
-          
-          const score = (l, n) => {
-            if (l === 'zh-hk') return 100;
-            if (l.startsWith('zh-hk')) return 90;
-            if (l.startsWith('yue')) return 80;
-            if (n.includes('cantonese') || n.includes('粵')) return 70;
-            if (l.startsWith('zh')) return 10;
-            return 0;
+        // 1. 定義廣東話特徵（語言代碼或名稱關鍵字）
+        const isCantonese = (v) => {
+          const l = String(v.lang || '').toLowerCase();
+          const n = String(v.name || '').toLowerCase();
+          return (
+            l === 'zh-hk' || 
+            l.startsWith('zh-hk') || 
+            l === 'yue-hk' || 
+            l.startsWith('yue') || 
+            n.includes('cantonese') || 
+            n.includes('粵語') || 
+            n.includes('廣東話') ||
+            n.includes('hong kong')
+          );
+        };
+
+        // 2. 篩選出所有廣東話語音
+        const canVoices = voices.filter(isCantonese);
+        
+        // 3. 排序：優先選取高品質或本地語音
+        canVoices.sort((a, b) => {
+          const la = String(a.lang || '').toLowerCase();
+          const lb = String(b.lang || '').toLowerCase();
+          const na = String(a.name || '').toLowerCase();
+          const nb = String(b.name || '').toLowerCase();
+
+          const score = (v, l, n) => {
+            let s = 0;
+            // 語言代碼完全匹配最高分
+            if (l === 'zh-hk' || l === 'yue-hk') s += 100;
+            else if (l.startsWith('zh-hk') || l.startsWith('yue')) s += 80;
+            
+            // 名稱匹配
+            if (n.includes('hong kong')) s += 50;
+            if (n.includes('粵語') || n.includes('廣東話')) s += 40;
+            if (n.includes('cantonese')) s += 30;
+            
+            // 偏好本地語音 (localService)
+            if (v.localService) s += 20;
+            
+            // 排除 Google 國語 (有時 Google 會將 zh-CN 語音也標為 zh)
+            if (n.includes('mandarin') || n.includes('putonghua')) s -= 200;
+            
+            return s;
           };
-          return score(lb, nb) - score(la, na);
+          return score(b, lb, nb) - score(a, la, na);
         });
 
-        const best = sorted[0];
-        const bestLang = String(best.lang||'').toLowerCase();
-        if (bestLang.startsWith('zh') || bestLang.startsWith('yue') || String(best.name).includes('粵')) {
-          return best;
+        if (canVoices.length > 0) {
+          return canVoices[0];
         }
-        return null;
+
+        // 4. 如果找不到明確標記為廣東話的，退而求其次找 zh-TW (有時在某些系統上廣東話包會放在 zh 下)
+        const fallback = voices.find(v => {
+          const l = String(v.lang || '').toLowerCase();
+          return l.startsWith('zh-hk') || l.startsWith('yue');
+        });
+        
+        return fallback || null;
       } catch(e){ return null; }
     }
 
@@ -3600,11 +3636,11 @@ try {
           try {
             // 如果搵唔到廣東話語音，都嘗試用預設語音播，避免完全無聲
             const u = new SpeechSynthesisUtterance(ch);
+            // 強制設定為廣東話，即使找不到對應 voice 也要嘗試讓系統用 zh-HK 讀
+            u.lang = 'zh-HK';
             if (voice) {
               u.voice = voice;
-              u.lang = voice.lang || 'zh-HK';
-            } else {
-              u.lang = 'zh-HK';
+              if (voice.lang) u.lang = voice.lang;
             }
             u.rate = rate;
             u.pitch = 1.0;
@@ -3698,11 +3734,11 @@ try {
           await new Promise((resolve) => {
             try {
               const u = new SpeechSynthesisUtterance(part);
+              // 強制設定為廣東話
+              u.lang = 'zh-HK';
               if (voice) {
                 u.voice = voice;
-                u.lang = voice.lang || 'zh-HK';
-              } else {
-                u.lang = 'zh-HK';
+                if (voice.lang) u.lang = voice.lang;
               }
               u.rate = 0.95;
               u.pitch = 1.0;
