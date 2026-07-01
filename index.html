@@ -6647,6 +6647,7 @@ try {
           }
         }
 
+        // 再次確保主角字在截斷前排在最前
         return ordered.slice(0, Math.max(0, limit || 0));
       }
 
@@ -6836,6 +6837,14 @@ try {
         const PLACE_CHARS = new Set(['灣', '墟', '涌', '角', '埔', '圍', '嶺', '洲', '島', '石', '湖', '山', '水', '坑', '徑', '道', '街', '里', '坊', '咀', '嘴', '坪', '坳', '肚', '窩', '台', '灣', '港']);
         
         const seenChars = new Set(categories['同音字']);
+
+        // 如果有主角字，確保佢喺「同音字」分類入面係絕對第一
+        if (protagonistChar && categories['同音字'].length > 0) {
+          const p = Array.from(String(protagonistChar))[0];
+          if (categories['同音字'].includes(p)) {
+            categories['同音字'] = [p, ...categories['同音字'].filter(x => x !== p)];
+          }
+        }
         
         // 港式拼音近似映射 (內部映射，用於中文查近音時的推薦)
         const JYUT_TO_HK_FUZZY = {
@@ -6911,7 +6920,17 @@ try {
 
         // 排序
         for (const key in categories) {
-          categories[key] = sortCharsByCommonness(categories[key]).slice(0, 60);
+          let sorted = sortCharsByCommonness(categories[key]);
+          
+          // ✅ 重要：如果係「同音字」分類，且有「主角字」，保證主角字排第一
+          if (key === '同音字' && protagonistChar) {
+            const p = Array.from(String(protagonistChar))[0];
+            if (p) {
+              sorted = [p, ...sorted.filter(x => x !== p)];
+            }
+          }
+          
+          categories[key] = sorted.slice(0, 60);
         }
 
         return categories;
