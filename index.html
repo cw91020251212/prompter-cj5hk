@@ -565,6 +565,28 @@
     .jyutping-input:focus { border-color: #3b82f6; }
 
     /* 粵語同音字（NEW v20260626） */
+    .jyutping-cat-header {
+      background: rgba(59, 130, 246, 0.15);
+      color: #93c5fd;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 1.05rem;
+      font-weight: 900;
+      margin: 12px 0 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-left: 4px solid #3b82f6;
+    }
+    .jyutping-cat-header::before {
+      content: '[';
+      opacity: 0.5;
+    }
+    .jyutping-cat-header::after {
+      content: ']';
+      opacity: 0.5;
+    }
+
     /* 粵語同音字：四個功能鍵改「水平一行」+ 更醒目配色 */
     .jyutping-actions{
       --jy-actions-scale: 0.88;
@@ -4870,10 +4892,9 @@ try {
             } catch(e) { return 'trad'; }
           })();
 
-          // groups: [{sourceChar, pinyins:[{pinyin, chars:[...]}]}]
+          // groups: [{sourceChar, pinyins:[{pinyin, categories:{'同音':[], ...}}]}]
           jyResults.innerHTML = groups.map(g => {
             function formatPinyinLabel(py){
-              // 用家常見疑問：英（Jyutping: jing1）= Yale: ying1
               try {
                 const m = String(py||'').match(/^jing([1-6])?$/i);
                 if (m) {
@@ -4903,40 +4924,48 @@ try {
 
             const blocks = (g.pinyins || []).map(p => {
               const pyLabel = formatPinyinLabel(p.pinyin);
-              const list = (p.chars || []);
-              const show = list.slice(0, 180);
-              const more = list.length - show.length;
+              const cats = p.categories || { '同音字': p.chars || [] };
+              
+              let catHtml = '';
+              for (const [catName, list] of Object.entries(cats)) {
+                if (!list || list.length === 0) continue;
+                
+                const show = list.slice(0, 180);
+                const more = list.length - show.length;
 
-              // 先按顯示模式「去重」：
-              // - both：以 (trad|simp) 作 key，將 飯/饭 變做同一粒
-              // - trad：全部轉繁再去重
-              // - simp：全部轉簡再去重
-              const map = new Map();
-              for (const ch of show) {
-                const t = toTradChar(ch);
-                const s = toSimpChar(ch);
-                const key = (mode === 'trad') ? t : (mode === 'simp') ? s : (t + '|' + s);
-                if (!map.has(key)) map.set(key, { trad: t, simp: s });
-              }
-              const items = Array.from(map.values());
-
-              const btns = items.map(it => {
-                const pick = (mode === 'trad') ? it.trad : (mode === 'simp') ? it.simp : (preferred === 'simp' ? it.simp : it.trad);
-                if (mode === 'both' && it.trad !== it.simp) {
-                  return `
-                    <button class="jyutping-char-btn jy-both" data-pick="${escapeHtml(pick)}" data-trad="${escapeHtml(it.trad)}" data-simp="${escapeHtml(it.simp)}">
-                      <div class="jy-both-line"><span class="jy-tag trad">繁</span><span class="jy-ch">${escapeHtml(it.trad)}</span></div>
-                      <div class="jy-both-line"><span class="jy-tag simp">简</span><span class="jy-ch">${escapeHtml(it.simp)}</span></div>
-                    </button>
-                  `;
+                const map = new Map();
+                for (const ch of show) {
+                  const t = toTradChar(ch);
+                  const s = toSimpChar(ch);
+                  const key = (mode === 'trad') ? t : (mode === 'simp') ? s : (t + '|' + s);
+                  if (!map.has(key)) map.set(key, { trad: t, simp: s });
                 }
-                const disp = (mode === 'trad') ? it.trad : (mode === 'simp') ? it.simp : it.trad;
-                return `<button class="jyutping-char-btn" data-pick="${escapeHtml(pick)}">${escapeHtml(disp)}</button>`;
-              }).join('');
+                const items = Array.from(map.values());
+
+                const btns = items.map(it => {
+                  const pick = (mode === 'trad') ? it.trad : (mode === 'simp') ? it.simp : (preferred === 'simp' ? it.simp : it.trad);
+                  if (mode === 'both' && it.trad !== it.simp) {
+                    return `
+                      <button class="jyutping-char-btn jy-both" data-pick="${escapeHtml(pick)}" data-trad="${escapeHtml(it.trad)}" data-simp="${escapeHtml(it.simp)}">
+                        <div class="jy-both-line"><span class="jy-tag trad">繁</span><span class="jy-ch">${escapeHtml(it.trad)}</span></div>
+                        <div class="jy-both-line"><span class="jy-tag simp">简</span><span class="jy-ch">${escapeHtml(it.simp)}</span></div>
+                      </button>
+                    `;
+                  }
+                  const disp = (mode === 'trad') ? it.trad : (mode === 'simp') ? it.simp : it.trad;
+                  return `<button class="jyutping-char-btn" data-pick="${escapeHtml(pick)}">${escapeHtml(disp)}</button>`;
+                }).join('');
+
+                catHtml += `
+                  <div class="jyutping-cat-header">${escapeHtml(catName)}</div>
+                  <div class="jyutping-chars">${btns || '<span style="color:#475569;font-weight:900;">（無）</span>'}</div>
+                  ${more > 0 ? `<div style="color:#64748b;font-size:0.9rem;margin-top:4px;">（只顯示前 ${show.length} 個，仲有 ${more} 個）</div>` : ''}
+                `;
+              }
 
               return `
-                <div class="jyutping-subnote">${escapeHtml(pyLabel)} · 同音字 ${list.length}${more>0?`（只顯示前 ${show.length}）`:''}</div>
-                <div class="jyutping-chars">${btns || '<span style="color:#475569;font-weight:900;">（無）</span>'}</div>
+                <div class="jyutping-subnote">${escapeHtml(pyLabel)}</div>
+                ${catHtml}
               `;
             }).join('');
 
@@ -5516,13 +5545,19 @@ try {
             else if (srcTrad !== srcSimp) srcHtml = `<span class="jy-source-both"><span class="jy-source-trad">${escapeHtml(srcTrad)}</span><span class="jy-source-sep">/</span><span class="jy-source-simp">${escapeHtml(srcSimp)}</span></span>`;
             const pills = (g.pinyins||[]).map(p=>`<span class="jyutping-py-pill">${escapeHtml(formatPinyinLabel(p.pinyin))}</span>`).join('');
             const blocks = (g.pinyins||[]).map(p=>{
-              const pyLabel = formatPinyinLabel(p.pinyin); const list = (p.chars||[]);
-              const show = list.slice(0,180); const more = list.length - show.length;
-              const map = new Map();
-              for (const ch of show) { const t=toTradChar(ch); const s=toSimpChar(ch); const key=(mode==='trad')?t:(mode==='simp')?s:(t+'|'+s); if (!map.has(key)) map.set(key,{trad:t,simp:s}); }
-              const items = Array.from(map.values());
-              const btns = items.map(it=>{ const pick=(mode==='trad')?it.trad:(mode==='simp')?it.simp:(preferred==='simp'?it.simp:it.trad); if (mode==='both'&&it.trad!==it.simp) return `<button class="jyutping-char-btn jy-both" data-pick="${escapeHtml(pick)}" data-trad="${escapeHtml(it.trad)}" data-simp="${escapeHtml(it.simp)}"><div class="jy-both-line"><span class="jy-tag trad">繁</span><span class="jy-ch">${escapeHtml(it.trad)}</span></div><div class="jy-both-line"><span class="jy-tag simp">簡</span><span class="jy-ch">${escapeHtml(it.simp)}</span></div></button>`; const disp=(mode==='trad')?it.trad:(mode==='simp')?it.simp:it.trad; return `<button class="jyutping-char-btn" data-pick="${escapeHtml(pick)}">${escapeHtml(disp)}</button>`; }).join('');
-              return `<div class="jyutping-subnote">${escapeHtml(pyLabel)} · 同音字 ${list.length}${more>0?`（只顯示前 ${show.length}）`:''}</div><div class="jyutping-chars">${btns||'<span style="color:#475569;font-weight:900;">（無）</span>'}</div>`;
+              const pyLabel = formatPinyinLabel(p.pinyin); 
+              const cats = p.categories || { '同音字': p.chars || [] };
+              let catHtml = '';
+              for (const [catName, list] of Object.entries(cats)) {
+                if (!list || list.length === 0) continue;
+                const show = list.slice(0,180); const more = list.length - show.length;
+                const map = new Map();
+                for (const ch of show) { const t=toTradChar(ch); const s=toSimpChar(ch); const key=(mode==='trad')?t:(mode==='simp')?s:(t+'|'+s); if (!map.has(key)) map.set(key,{trad:t,simp:s}); }
+                const items = Array.from(map.values());
+                const btns = items.map(it=>{ const pick=(mode==='trad')?it.trad:(mode==='simp')?it.simp:(preferred==='simp'?it.simp:it.trad); if (mode==='both'&&it.trad!==it.simp) return `<button class="jyutping-char-btn jy-both" data-pick="${escapeHtml(pick)}" data-trad="${escapeHtml(it.trad)}" data-simp="${escapeHtml(it.simp)}"><div class="jy-both-line"><span class="jy-tag trad">繁</span><span class="jy-ch">${escapeHtml(it.trad)}</span></div><div class="jy-both-line"><span class="jy-tag simp">簡</span><span class="jy-ch">${escapeHtml(it.simp)}</span></div></button>`; const disp=(mode==='trad')?it.trad:(mode==='simp')?it.simp:it.trad; return `<button class="jyutping-char-btn" data-pick="${escapeHtml(pick)}">${escapeHtml(disp)}</button>`; }).join('');
+                catHtml += `<div class="jyutping-cat-header">${escapeHtml(catName)}</div><div class="jyutping-chars">${btns||'<span style="color:#475569;font-weight:900;">（無）</span>'}</div>`;
+              }
+              return `<div class="jyutping-subnote">${escapeHtml(pyLabel)}</div>${catHtml}`;
             }).join('');
             return `<div class="jyutping-item"><div class="jyutping-charhead"><div class="jyutping-source">${srcHtml}</div><div class="jyutping-pys">${pills||'<span class="jyutping-py-pill">（無讀音）</span>'}</div></div>${blocks||'<div style="color:#f87171;font-weight:900;">此字未收錄（或冒粵拼資料）</div>'}</div>`;
           }).join('');
@@ -6621,23 +6656,26 @@ try {
         const raw = normalizePinyinQuery(input);
         if (!raw || !dict) return [];
 
-        // 兼容：香港常見用 Yale / 普通話習慣輸入
-        // 例：用家輸入 ying（英），字典 key 其實係 Jyutping：jing
         const ALIAS = {
           ying: 'jing',
-          law: 'lo'
+          law: 'lo',
+          ho: 'hou',
+          cheung: 'zoeng',
+          shing: 'sing',
+          tsui: 'ceoi',
+          kwun: 'gwun',
+          wan: 'waan',
+          lai: 'lai',
+          mei: 'mei',
+          tai: 'taai'
         };
         let q = ALIAS[raw] || raw;
 
-        // 特殊處理 "wu"：香港 (HK) 指 "胡" (wu)，大陸 (CN) 指 "吳" (ng/wu)
-        // 實際上在粵拼中，吳是 ng，胡是 wu。但用戶提到大陸 wu 解吳。
-        // 我們在這裡做一個映射轉向。
         if (q === 'wu' && region === 'CN') {
           q = 'ng'; 
         }
 
         const usedAlias = (q !== raw);
-
         const keys = Object.keys(dict.pinyin_to_chars || {});
         const matched = keys
           .filter(k => k === q || k.startsWith(q))
@@ -6648,12 +6686,25 @@ try {
           })
           .slice(0, maxGroups);
 
-        return matched.map(py => ({
-          // 如果用咗 alias：左邊保留用家輸入（例如 ying），避免覺得「點解變咗 jing」
-          sourceChar: usedAlias ? raw : py,
-          pinyins: [{ pinyin: usedAlias ? `${py}（粵拼 / Jyutping）` : py, chars: getHomophones(py, null, limitPerReading) }],
-          missing: false
-        }));
+        return matched.map(py => {
+          const categories = categorizeHomophones(py, null, limitPerReading);
+          // 如果是用戶輸入的拼音近似，則將其標記為「港式拼音近似」
+          if (usedAlias) {
+            const homophones = categories['同音字'] || [];
+            categories['港式拼音近似'] = [...homophones];
+            categories['同音字'] = [];
+          }
+          
+          return {
+            sourceChar: usedAlias ? raw : py,
+            pinyins: [{ 
+              pinyin: usedAlias ? `${py}（粵拼 / Jyutping）` : py, 
+              chars: categories['同音字'] || [],
+              categories: categories
+            }],
+            missing: false
+          };
+        });
       }
 
       // 主要查詢：中文（可多字）→ 每個字分組列出讀音 + 同音字
@@ -6667,10 +6718,14 @@ try {
         const groups = [];
         for (const srcChar of chars) {
           const pinyins = getJyutpingsOfChar(srcChar);
-          const items = pinyins.map(py => ({
-            pinyin: py,
-            chars: getHomophones(py, srcChar, limitPerReading)
-          }));
+          const items = pinyins.map(py => {
+            const categories = categorizeHomophones(py, srcChar, limitPerReading);
+            return {
+              pinyin: py,
+              chars: categories['同音字'] || [],
+              categories: categories
+            };
+          });
           groups.push({
             sourceChar: srcChar,
             pinyins: items,
@@ -6678,6 +6733,92 @@ try {
           });
         }
         return groups;
+      }
+
+      function categorizeHomophones(py, protagonistChar, limit = 180) {
+        if (!dict) return {};
+        
+        // 拆分粵拼：聲母 + 韻母 + 聲調
+        // 粵拼聲母：b, p, m, f, d, t, n, l, g, k, ng, h, gw, kw, w, z, c, s, j
+        const match = String(py).match(/^([bpmfdtnlgknhwzcsj]|ng|gw|kw)?([aeiouy][a-z]*)([1-6])?$/);
+        const initial = match ? (match[1] || '') : '';
+        const final = match ? (match[2] || '') : '';
+        const tone = match ? (match[3] || '') : '';
+        
+        const allPinyins = Object.keys(dict.pinyin_to_chars || {});
+        const categories = {
+          '同音字': getHomophones(py, protagonistChar, limit),
+          '聲母相近': [],
+          '韻母相近': [],
+          '港式拼音近似': [],
+          '香港地名常見': []
+        };
+
+        const PLACE_CHARS = new Set(['灣', '墟', '涌', '角', '埔', '圍', '嶺', '洲', '島', '石', '湖', '山', '水', '坑', '徑', '道', '街', '里', '坊', '咀', '嘴', '坪', '坳', '肚', '窩', '台', '灣', '港']);
+        
+        const seenChars = new Set(categories['同音字']);
+        
+        // 港式拼音近似映射 (簡單版)
+        const HK_PY_MAP = {
+          'ho': ['ho', 'hou'],
+          'cheung': ['zoeng', 'coeng'],
+          'shing': ['sing', 'zeng'],
+          'tsui': ['ceoi'],
+          'kwun': ['gwun', 'kun'],
+          'wan': ['waan', 'wan'],
+          'lai': ['lai'],
+          'mei': ['mei'],
+          'tai': ['taai', 'tai']
+        };
+
+        for (const p of allPinyins) {
+          const m = p.match(/^([bpmfdtnlgknhwzcsj]|ng|gw|kw)?([aeiouy][a-z]*)([1-6])?$/);
+          if (!m) continue;
+          const pInitial = m[1] || '';
+          const pFinal = m[2] || '';
+          
+          const chars = dict.pinyin_to_chars[p] || [];
+          
+          // 1. 聲母相近 (相同聲母，不同韻母)
+          if (initial && pInitial === initial && p !== py) {
+            for (const c of chars) {
+              if (!seenChars.has(c)) {
+                categories['聲母相近'].push(c);
+                seenChars.add(c);
+              }
+            }
+          }
+          
+          // 2. 韻母相近 (相同韻母，不同聲母)
+          if (final && pFinal === final && p !== py) {
+            for (const c of chars) {
+              if (!seenChars.has(c)) {
+                categories['韻母相近'].push(c);
+                seenChars.add(c);
+              }
+            }
+          }
+        }
+        
+        // 3. 香港地名常見 (從已找到的近音字中提取，或者額外增加)
+        // 這裡我們從所有近音字中挑選出地名常用字
+        const allRelated = [...categories['同音字'], ...categories['聲母相近'], ...categories['韻母相近']];
+        for (const c of allRelated) {
+          if (PLACE_CHARS.has(c)) {
+            categories['香港地名常見'].push(c);
+          }
+        }
+        // 如果地名常用字太少，可以考慮把地名常用字中讀音最接近的也放進來 (略過)
+
+        // 4. 港式拼音近似 (如果輸入是英文，則 searchByPinyin 會處理；如果是中文，則根據其讀音找近似英文拼法)
+        // 這裡暫時留空，主要由 searchByPinyin 觸發更精確的分類
+
+        // 排序
+        for (const key in categories) {
+          categories[key] = sortCharsByCommonness(categories[key]).slice(0, 60);
+        }
+
+        return categories;
       }
 
       window.HKHomophones = {
