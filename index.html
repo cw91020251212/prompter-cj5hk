@@ -699,7 +699,8 @@
 
     
     /* 懸浮按鈕 */
-    body.softkbd-open .jyutping-fab{ display:none !important; }
+    body.softkbd-open .jyutping-fab,
+    body.input-focus .jyutping-fab{ display:none !important; }
 
     .jyutping-fab {
       position: fixed; right: calc(-9px + env(safe-area-inset-right, 0px));
@@ -1820,7 +1821,8 @@
             const panel = document.getElementById('jyutpingPanel');
             const isDictPage = body.classList.contains('mode-dict-page') || !!document.querySelector('.app.mode-dict');
             const panelOpen = panel && panel.classList.contains('open');
-            if (fab && isDictPage && !panelOpen) fab.style.display = 'flex';
+            const inputFocused = body.classList.contains('input-focus');
+            if (fab && isDictPage && !panelOpen && !inputFocused) fab.style.display = 'flex';
           } catch(e) {}
         }
       }
@@ -1855,6 +1857,15 @@
         if (!t) return;
         const tag = (t.tagName || '').toLowerCase();
         if (tag === 'input' || tag === 'textarea' || t.isContentEditable) {
+          body.classList.add('input-focus');
+
+          // iPad / iOS「浮動鍵盤」好多時唔會改變 visualViewport，
+          // 原本靠高度差偵測會失效；有輸入焦點時直接收起近音掣，避免被鍵盤遮住。
+          try {
+            const fab = document.getElementById('jyutpingFab');
+            if (fab) fab.style.display = 'none';
+          } catch(e) {}
+
           update();
           if (t.id === 'inputTextArea') return;
           ensureVisible(t);
@@ -1862,7 +1873,13 @@
       }, true);
 
       body.addEventListener('focusout', () => {
-        setTimeout(update, 120);
+        setTimeout(() => {
+          const a = document.activeElement;
+          const tag = a ? (a.tagName || '').toLowerCase() : '';
+          const stillEditing = !!a && (tag === 'input' || tag === 'textarea' || a.isContentEditable);
+          if (!stillEditing) body.classList.remove('input-focus');
+          update();
+        }, 120);
       }, true);
     }
 
@@ -7266,7 +7283,7 @@ try {
 
 
 
-<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v833ccba57c9e4d2798f2e76cebdd09a11778172276447" integrity="sha512-57MDmcccJXYtNnH+ZiBwzC4jb2rvgVCEokYN+L/nLlmO8rfYT/gIpW2A569iJ/3b+0UEasghjuZH/ma3wIs/EQ==" data-cf-beacon='{"version":"2024.11.0","token":"4edd5f8ec12a48cfa682ab8261b80a79","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+<!-- Removed Cloudflare beacon script: unavailable in local/preview environment -->
 </body>
 </html>
 
