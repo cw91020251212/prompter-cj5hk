@@ -1569,95 +1569,57 @@
 
   
 
-    /* ===== Boot / 啟動狀態（避免只見靜止畫面） ===== */
+    /* ===== Boot / 啟動狀態（僅保留旋轉圓圈、進度條與百分比） ===== */
     #bootOverlay{
       position: fixed; inset: 0; z-index: 99999;
       display: flex; align-items: center; justify-content: center;
-      background: rgba(2,6,23,0.45);
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
+      background: #0f172a; /* 使用與 App 一致的深色背景 */
     }
-    #bootOverlay .card{
-      width: min(520px, calc(100vw - 36px));
-      background: rgba(15,23,42,0.70);
-      border: 1px solid rgba(148,163,184,0.30);
-      border-radius: 18px;
-      padding: 18px 16px;
-      box-shadow: 0 18px 46px rgba(0,0,0,0.45);
+    #bootOverlay .boot-container{
+      width: min(300px, 80vw);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 24px;
     }
-    #bootOverlay .title{ font-weight: 900; font-size: 1.05rem; margin-bottom: 6px; color:#e2e8f0; }
-    #bootOverlay .desc{ font-size: 0.95rem; color: rgba(226,232,240,0.82); line-height: 1.45; }
-    #bootOverlay .row{ display:flex; gap:12px; align-items:center; margin-top: 12px; }
-
-    /* Boot progress bar */
-    #bootOverlay .boot-progress{ margin-top: 12px; }
-    #bootOverlay .boot-progress-top{ display:flex; justify-content:space-between; gap:10px; margin-bottom:6px; }
-    #bootOverlay .boot-progress-label{ font-size:0.85rem; color: rgba(226,232,240,0.90); }
-    #bootOverlay .boot-progress-pct{ font-size:0.85rem; color: rgba(226,232,240,0.90); font-variant-numeric: tabular-nums; }
-    #bootOverlay .boot-progress-track{ height: 10px; background: rgba(148,163,184,0.18); border-radius: 999px; overflow:hidden; border:1px solid rgba(148,163,184,0.22); }
-    #bootOverlay .boot-progress-fill{ height:100%; width:6%; border-radius:999px;
-      background: linear-gradient(90deg, rgba(59,130,246,0.95), rgba(96,165,250,0.95), rgba(34,211,238,0.95));
-      background-size: 200% 100%; animation: bootshimmer 1.2s linear infinite;
-      box-shadow: 0 0 18px rgba(59,130,246,0.35);
-      transition: width 280ms ease;
-    }
-    @keyframes bootshimmer{ from{ background-position: 0% 50%; } to{ background-position: 100% 50%; } }
-
     #bootOverlay .spinner{
-      width: 18px; height: 18px; border-radius: 999px;
-      border: 3px solid rgba(148,163,184,0.35);
-      border-top-color: rgba(96,165,250,0.95);
-      animation: bootspin 0.9s linear infinite;
-      flex: 0 0 auto;
+      width: 50px; height: 50px; border-radius: 50%;
+      border: 4px solid rgba(148,163,184,0.15);
+      border-top-color: #3b82f6;
+      animation: bootspin 1s linear infinite;
     }
     @keyframes bootspin{ to{ transform: rotate(360deg);} }
-    #bootOverlay .meta{
-      margin-top: 10px;
-      font-size: 0.84rem;
-      color: rgba(148,163,184,0.90);
-      word-break: break-word;
-      white-space: pre-wrap;
-      display:none;
+    
+    #bootOverlay .boot-progress{ width: 100%; }
+    #bootOverlay .boot-progress-track{ 
+      height: 8px; background: rgba(148,163,184,0.1); border-radius: 999px; 
+      overflow:hidden; border:1px solid rgba(148,163,184,0.15); 
     }
-    #bootOverlay.show-meta .meta{ display:block; }
-    #bootOverlay .btns{ margin-top: 12px; display:flex; gap:10px; flex-wrap:wrap; }
-    #bootOverlay button{
-      appearance:none; border:none; cursor:pointer;
-      padding: 8px 12px; border-radius: 999px;
-      font-weight: 800;
-      background: rgba(59,130,246,0.92); color: white;
+    #bootOverlay .boot-progress-fill{ 
+      height:100%; width:0%; border-radius:999px;
+      background: linear-gradient(90deg, #3b82f6, #60a5fa);
+      transition: width 300ms ease;
     }
-    #bootOverlay button.secondary{ background: rgba(148,163,184,0.22); color:#e2e8f0; border:1px solid rgba(148,163,184,0.25); }
+    #bootOverlay .boot-progress-pct{ 
+      margin-top: 10px; text-align: center;
+      font-size: 1.2rem; font-weight: 800; color: #94a3b8; 
+      font-variant-numeric: tabular-nums; 
+    }
     #bootOverlay.hidden{ display:none !important; }
 </style>
 </head>
 <body>
 
-  <!-- Boot overlay：如果 JS 卡住/死機，畫面會有提示 -->
+  <!-- Boot overlay：簡約開機畫面 -->
   <div id="bootOverlay">
-    <div class="card">
-      <div class="title">載入中…</div>
-      <div class="desc" id="bootStage">初始化中</div>
-      <div class="row">
-        <div class="spinner" aria-hidden="true"></div>
-        <div class="desc" id="bootHint">如果長時間停留：可能係資料量大／裝置太慢／瀏覽器唔支援某啲功能。</div>
-      </div>
-
+    <div class="boot-container">
+      <div class="spinner" aria-hidden="true"></div>
       <div class="boot-progress">
-        <div class="boot-progress-top">
-          <div class="boot-progress-label" id="bootProgressLabel">初始化中</div>
-          <div class="boot-progress-pct" id="bootProgressPct">6%</div>
+        <div class="boot-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <div class="boot-progress-fill" id="bootProgressFill"></div>
         </div>
-        <div class="boot-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="6" aria-label="載入進度">
-          <div class="boot-progress-fill" id="bootProgressFill" style="width:6%"></div>
-        </div>
+        <div class="boot-progress-pct" id="bootProgressPct">0%</div>
       </div>
-
-      <div class="btns">
-        <button id="bootShowError" class="secondary" type="button">顯示錯誤/狀態</button>
-        <button id="bootReload" class="secondary" type="button">重新載入</button>
-      </div>
-      <div class="meta" id="bootMeta"></div>
     </div>
   </div>
 
@@ -1704,79 +1666,46 @@
     // ===== Boot 狀態：回答『而家係死機定做緊嘢？』=====
     (function(){
       const ov = document.getElementById('bootOverlay');
-      const stageEl = document.getElementById('bootStage');
-
       const barEl = document.getElementById('bootProgressFill');
       const pctEl = document.getElementById('bootProgressPct');
-      const labelEl = document.getElementById('bootProgressLabel');
       const trackEl = (ov && ov.querySelector) ? ov.querySelector('.boot-progress-track') : null;
 
-      let _pct = 6;
+      let _pct = 0;
       let _finished = false;
       let _lastManual = Date.now();
 
       function _clamp(n, a, b){ return Math.max(a, Math.min(b, n)); }
 
-      function setProgress(pct, label){
+      function setProgress(pct){
         if (_finished) return;
         const n = _clamp(Number(pct), 0, 99);
         if (!Number.isFinite(n)) return;
         _pct = n;
         try { if (barEl) barEl.style.width = Math.round(_pct) + '%'; } catch(e) {}
         try { if (pctEl) pctEl.textContent = Math.round(_pct) + '%'; } catch(e) {}
-        try { if (labelEl && label) labelEl.textContent = String(label); } catch(e) {}
         try { if (trackEl) trackEl.setAttribute('aria-valuenow', String(Math.round(_pct))); } catch(e) {}
-      }
-
-      function bumpProgress(delta){
-        if (_finished) return;
-        const d = Number(delta);
-        if (!Number.isFinite(d)) return;
-        setProgress(_pct + d, labelEl ? labelEl.textContent : undefined);
       }
 
       function finishProgress(){
         _finished = true;
         try { if (barEl) barEl.style.width = '100%'; } catch(e) {}
         try { if (pctEl) pctEl.textContent = '100%'; } catch(e) {}
-        try { if (labelEl) labelEl.textContent = '完成'; } catch(e) {}
         try { if (trackEl) trackEl.setAttribute('aria-valuenow', '100'); } catch(e) {}
       }
 
-      // 自動「估算進度」：就算未插到每個步驟，都會慢慢郁到 ~88%
+      // 自動「估算進度」
       const autoTimer = setInterval(() => {
         try {
           if (!ov || ov.classList.contains('hidden')) { clearInterval(autoTimer); return; }
           const cap = 88;
           if (_pct >= cap) return;
-
-          // 如果手動更新太密，就唔好狂跳
           const idleMs = Date.now() - _lastManual;
           if (idleMs < 300) return;
-
           const step = (_pct < 35) ? 2.0 : (_pct < 65) ? 1.2 : 0.6;
-          setProgress(_pct + step, labelEl ? labelEl.textContent : undefined);
+          setProgress(_pct + step);
         } catch(e) {}
       }, 450);
 
-      const metaEl = document.getElementById('bootMeta');
-      const btnShow = document.getElementById('bootShowError');
-      const btnReload = document.getElementById('bootReload');
-      const t0 = (performance && performance.now) ? performance.now() : Date.now();
-
-      function nowMs(){
-        const t = (performance && performance.now) ? performance.now() : Date.now();
-        return Math.max(0, t - t0);
-      }
-      function setStage(s){
-        try { if (stageEl) stageEl.textContent = s; } catch(e) {}
-      }
-      function setMeta(s){
-        try { if (metaEl) metaEl.textContent = s; } catch(e) {}
-      }
-      function showMeta(){
-        try { if (ov) ov.classList.add('show-meta'); } catch(e) {}
-      }
       function hide(){
         try { if (ov) ov.classList.add('hidden'); } catch(e) {}
       }
@@ -1784,68 +1713,34 @@
       window.__boot = {
         set(stage, extra){
           _lastManual = Date.now();
-          setStage(stage);
-          // 有 stage 就當作 label
-          try { setProgress(_pct + 1, stage); } catch(e) {}
-          if (extra) setMeta(String(extra));
+          setProgress(_pct + 1);
         },
         progress(pct, stage, extra){
           _lastManual = Date.now();
-          if (stage) setStage(stage);
-          setProgress(pct, stage || undefined);
-          if (extra) setMeta(String(extra));
+          setProgress(pct);
         },
         fail(err){
           _lastManual = Date.now();
-          setStage('載入出錯 / 可能卡住');
-          try { setProgress(_pct, '載入出錯'); } catch(e) {}
-          const msg = (err && (err.stack || err.message)) ? (err.stack || err.message) : String(err || 'unknown');
-          setMeta('[' + Math.round(nowMs()) + 'ms] ' + msg);
-          showMeta();
+          // 失敗時不顯示文字，僅保持當前進度
         },
         done(){
           try { finishProgress(); } catch(e) {}
-          // 畀用家睇到 100% 一下先收起
           setTimeout(() => { hide(); }, 220);
         }
       };
 
-
-
-      // 早期事件：畀進度有一兩次『真』跳動
       try {
         document.addEventListener('DOMContentLoaded', () => {
-          try { window.__boot && window.__boot.progress(18, 'DOM 已就緒…'); } catch(e) {}
+          try { window.__boot && window.__boot.progress(18); } catch(e) {}
         }, { once: true });
       } catch(e) {}
       try {
         window.addEventListener('load', () => {
-          try { window.__boot && window.__boot.progress(70, '資源載入完成…'); } catch(e) {}
+          try { window.__boot && window.__boot.progress(70); } catch(e) {}
         }, { once: true });
       } catch(e) {}
-      // boot:domcontent
 
-      // 8 秒仍未完成：提醒用家唔好估係死機
-      setTimeout(() => {
-        try {
-          if (ov && !ov.classList.contains('hidden')) {
-            setStage('仍在載入…（可能資料量大/裝置較慢）');
-          }
-        } catch(e) {}
-      }, 8000);
-
-      window.addEventListener('error', (e) => {
-        try { window.__boot && window.__boot.fail(e.error || e.message || e); } catch(_) {}
-      });
-      window.addEventListener('unhandledrejection', (e) => {
-        try { window.__boot && window.__boot.fail(e.reason || e); } catch(_) {}
-      });
-
-      try { if (btnShow) btnShow.addEventListener('click', () => { showMeta(); }); } catch(e) {}
-      try { if (btnReload) btnReload.addEventListener('click', () => { location.reload(); }); } catch(e) {}
-
-      setStage('初始化中');
-      try { setProgress(6, '初始化中'); } catch(e) {}
+      try { setProgress(6); } catch(e) {}
     })();
 
 
