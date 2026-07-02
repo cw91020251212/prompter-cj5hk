@@ -4965,9 +4965,18 @@ try {
               let catHtml = '';
               for (const [catName, list] of Object.entries(cats)) {
                 if (!list || list.length === 0) continue;
+
+                // 保證「同音字」第一個一定係查緊嗰個字（可撳返同一字）
+                let working = Array.isArray(list) ? list.slice() : [];
+                if (catName === '同音字' && g && g.sourceChar) {
+                  const pch = Array.from(String(g.sourceChar))[0];
+                  if (pch) {
+                    working = [pch, ...working.filter(x => x !== pch)];
+                  }
+                }
                 
-                const show = list.slice(0, 180);
-                const more = list.length - show.length;
+                const show = working.slice(0, 180);
+                const more = working.length - show.length;
 
                 const map = new Map();
                 for (const ch of show) {
@@ -5586,7 +5595,15 @@ try {
               let catHtml = '';
               for (const [catName, list] of Object.entries(cats)) {
                 if (!list || list.length === 0) continue;
-                const show = list.slice(0,180); const more = list.length - show.length;
+
+                // 保證「同音字」第一個一定係查緊嗰個字（可撳返同一字）
+                let working = Array.isArray(list) ? list.slice() : [];
+                if (catName === '同音字' && g && g.sourceChar) {
+                  const pch = Array.from(String(g.sourceChar))[0];
+                  if (pch) working = [pch, ...working.filter(x => x !== pch)];
+                }
+
+                const show = working.slice(0,180); const more = working.length - show.length;
                 const map = new Map();
                 for (const ch of show) { const t=toTradChar(ch); const s=toSimpChar(ch); const key=(mode==='trad')?t:(mode==='simp')?s:(t+'|'+s); if (!map.has(key)) map.set(key,{trad:t,simp:s}); }
                 const items = Array.from(map.values());
