@@ -1606,7 +1606,7 @@
 	<button id="jyutpingFab" class="jyutping-fab" title="近音字查詢" aria-label="近音字查詢">近音</button>
 
 	<!-- OpenCC：繁體/簡體轉換（內嵌 opencc-js@1.0.5 full build，方便離線用） -->
-	<script>
+	<script id="opencc_bundle" type="text/plain">
 /* opencc-js@1.0.5 (full build) - https://github.com/nk2028/opencc-js */
 (function (global, factory) {
   typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
@@ -2000,6 +2000,38 @@
 <script>
   (function(){
     "use strict";
+
+    // ---------- 延遲載入 OpenCC（加速開機） ----------
+    // OpenCC full build 會好大；改成用到先載入，避免一開就卡住。
+    window.__loadOpenCC = window.__loadOpenCC || (function(){
+      let p = null;
+      return function __loadOpenCC(){
+        if (window.OpenCC && typeof window.OpenCC.Converter === 'function') return Promise.resolve(true);
+        if (p) return p;
+        p = new Promise((resolve, reject) => {
+          try {
+            const el = document.getElementById('opencc_bundle');
+            if (!el) return resolve(false);
+            const code = (el.textContent || '');
+            if (!code.trim()) return resolve(false);
+
+            // 以動態 <script> 插入方式載入；插入後會同步執行
+            const s = document.createElement('script');
+            s.text = code;
+            document.head.appendChild(s);
+
+            // 釋放記憶體：載入完就清空原文（可選）
+            try { el.textContent = ''; } catch(e) {}
+
+            resolve(!!(window.OpenCC && typeof window.OpenCC.Converter === 'function'));
+          } catch (e) {
+            reject(e);
+          }
+        });
+        return p;
+      };
+    })();
+
 
     // ---------- 鍵盤避讓 ----------
     function setupKeyboardAvoidance(){
@@ -4868,6 +4900,7 @@ try {
           try { localStorage.setItem(JY_SCRIPT_MODE_KEY, next); } catch(e) {}
           updateJyScriptBtnText();
           // 重新觸發查詢以套用新顯示
+          try { window.__loadOpenCC && window.__loadOpenCC().then(() => { try { window.__performJyHomophoneSearch && window.__performJyHomophoneSearch(); } catch(e) {} }); } catch(e) {}
           try { window.__performJyHomophoneSearch && window.__performJyHomophoneSearch(); } catch(e) {}
         });
       }
@@ -4885,11 +4918,14 @@ try {
         function ensureConverters(){
           if (__toTrad && __toSimp) return;
           try {
-            if (window.OpenCC && typeof window.OpenCC.Converter === 'function') {
-              // 以香港用字為主：cn -> hk / hk -> cn
-              __toTrad = window.OpenCC.Converter({ from: 'cn', to: 'hk' });
-              __toSimp = window.OpenCC.Converter({ from: 'hk', to: 'cn' });
+            if (!(window.OpenCC && typeof window.OpenCC.Converter === 'function')) {
+              // 未載入 OpenCC：先喺背景觸發載入（唔阻當下渲染）
+              try { window.__loadOpenCC && window.__loadOpenCC(); } catch(e) {}
+              return;
             }
+            // 以香港用字為主：cn -> hk / hk -> cn
+            __toTrad = window.OpenCC.Converter({ from: 'cn', to: 'hk' });
+            __toSimp = window.OpenCC.Converter({ from: 'hk', to: 'cn' });
           } catch(e) {
             __toTrad = null; __toSimp = null;
           }
@@ -5550,6 +5586,7 @@ try {
           state.jyScriptMode = next;
           try { localStorage.setItem(JY_SCRIPT_MODE_KEY, next); } catch(e) {}
           updateJyScriptBtnText();
+          try { window.__loadOpenCC && window.__loadOpenCC().then(() => { try { window.__performJyHomophoneSearch && window.__performJyHomophoneSearch(); } catch(e) {} }); } catch(e) {}
           try { window.__performJyHomophoneSearch && window.__performJyHomophoneSearch(); } catch(e) {}
         });
       }
@@ -5564,11 +5601,17 @@ try {
         function ensureConverters(){
           if (__toTrad && __toSimp) return;
           try {
-            if (window.OpenCC && typeof window.OpenCC.Converter === 'function') {
-              __toTrad = window.OpenCC.Converter({ from: 'cn', to: 'hk' });
-              __toSimp = window.OpenCC.Converter({ from: 'hk', to: 'cn' });
+            if (!(window.OpenCC && typeof window.OpenCC.Converter === 'function')) {
+              // 未載入 OpenCC：先喺背景觸發載入（唔阻當下渲染）
+              try { window.__loadOpenCC && window.__loadOpenCC(); } catch(e) {}
+              return;
             }
-          } catch(e) { __toTrad = null; __toSimp = null; }
+            // 以香港用字為主：cn -> hk / hk -> cn
+            __toTrad = window.OpenCC.Converter({ from: 'cn', to: 'hk' });
+            __toSimp = window.OpenCC.Converter({ from: 'hk', to: 'cn' });
+          } catch(e) {
+            __toTrad = null; __toSimp = null;
+          }
         }
         function toTradChar(ch){ ensureConverters(); try { return (__toTrad ? __toTrad(String(ch)) : String(ch)); } catch(e) { return String(ch); } }
         function toSimpChar(ch){ ensureConverters(); try { return (__toSimp ? __toSimp(String(ch)) : String(ch)); } catch(e) { return String(ch); } }
