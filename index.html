@@ -382,17 +382,6 @@
 
     /* 手寫查字面板 */
     .handwriting-panel{ width:min(520px, calc(100vw - 32px)); margin:0 auto; padding:16px; background:rgba(15,23,42,.92); border:1px solid #334155; border-radius:22px; box-shadow:0 16px 38px rgba(0,0,0,.22); }
-    /* 提詞機手寫：直接在原本輸入／顯示板上書寫，不再向下推開另一塊面板。 */
-    .prompter-input-wrap{ position:relative; min-height:0; }
-    .prompter-input-wrap .prompter-handwriting-overlay{ position:absolute; inset:0; z-index:8; width:100%; height:100%; margin:0; padding:10px; display:flex; flex-direction:column; justify-content:flex-end; background:rgba(15,23,42,.12); border:2px solid rgba(45,212,191,.9); border-radius:16px; box-shadow:inset 0 0 0 1px rgba(15,23,42,.42), 0 12px 30px rgba(0,0,0,.22); }
-    .prompter-input-wrap .prompter-handwriting-overlay .handwriting-head{ flex:0 0 auto; margin:0 0 6px; padding:6px 9px; border-radius:10px; background:rgba(15,23,42,.82); }
-    .prompter-input-wrap .prompter-handwriting-overlay .handwriting-canvas-wrap{ flex:1 1 auto; width:100%; min-height:0; height:auto; aspect-ratio:auto; background:rgba(248,250,252,.08); border:0; border-radius:10px; }
-    .prompter-input-wrap .prompter-handwriting-overlay .handwriting-canvas-wrap canvas{ width:100%; height:100%; display:block; }
-    .prompter-input-wrap .prompter-handwriting-overlay .handwriting-actions{ flex:0 0 auto; margin-top:6px; }
-    .prompter-input-wrap .prompter-handwriting-overlay .handwriting-actions button{ min-height:36px; padding:6px 10px; background:rgba(15,23,42,.88); }
-    .prompter-input-wrap .prompter-handwriting-overlay .handwriting-status{ flex:0 0 auto; min-height:0; margin:4px 0 0; padding:3px 7px; border-radius:8px; background:rgba(15,23,42,.72); font-size:.82rem; }
-    .prompter-input-wrap .prompter-handwriting-overlay .handwriting-candidates{ flex:0 0 auto; margin-top:4px; }
-    .prompter-input-wrap .prompter-handwriting-overlay .handwriting-candidate{ width:38px; height:38px; font-size:1.45rem; }
     .handwriting-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px; color:#cbd5e1; }
     .handwriting-title{ font-size:1.12rem; color:#5eead4; letter-spacing:.04em; }
     .handwriting-hint{ font-size:.9rem; color:#94a3b8; }
@@ -3863,8 +3852,7 @@ try {
       if (!state.handwritingOpen) return '';
       const status = escapeHtml(state.handwritingStatus || '寫一個中文字，再撳「辨認」');
       const candidates = (state.handwritingCandidates || []).map((ch) => `<button type="button" class="handwriting-candidate" data-handwriting-char="${escapeHtml(ch)}" aria-label="選擇 ${escapeHtml(ch)}">${escapeHtml(ch)}</button>`).join('');
-      const prompterClass = state.handwritingTarget === 'prompter' ? ' prompter-handwriting-overlay' : '';
-      return `<section class="handwriting-panel${prompterClass}" aria-label="手寫查字">
+      return `<section class="handwriting-panel" aria-label="手寫查字">
         <div class="handwriting-head"><span class="handwriting-title">✍ ${state.handwritingTarget === 'prompter' ? '手寫補字' : '手寫查字'}</span><span class="handwriting-hint">可用手指、滑鼠或觸控筆</span></div>
         <div class="handwriting-canvas-wrap"><canvas id="handwritingCanvas" width="620" height="400"></canvas><div class="handwriting-grid"></div></div>
         <div class="handwriting-actions"><button type="button" id="handwritingClearBtn">清除重寫</button><button type="button" id="handwritingRecognizeBtn" class="primary" ${state.handwritingStrokes.length ? '' : 'disabled'}>辨認</button></div>
@@ -4034,12 +4022,12 @@ try {
                 </button>
               </div>
             </div>
-            <div class="prompter-input-wrap">
+            <div style="position:relative;">
               <textarea id="inputTextArea" placeholder=" ">${escapeHtml(text)}</textarea>
               <div id="fauxPlaceholder" class="custom-placeholder" style="display: ${text.length === 0 ? 'flex' : 'none'};"><span class="cursor"></span>請輸入訊息</div>
-              ${state.handwritingOpen && state.handwritingTarget === 'prompter' ? renderHandwritingHtml() : ''}
             </div>
             <button id="prompterHandwritingToggleBtn" class="prompter-handwriting-btn" type="button">✍ 手寫補字</button>
+            ${state.handwritingOpen && state.handwritingTarget === 'prompter' ? renderHandwritingHtml() : ''}
             <button id="startBtn" class="btn-primary" ${(!isReady || textArray.length===0)?'disabled':''}>
               ▶ 開始
             </button>
@@ -4224,12 +4212,12 @@ try {
                 </button>
               </div>
             </div>
-            <div class="prompter-input-wrap">
+            <div style="position:relative;">
               <textarea id="inputTextArea" placeholder=" ">${escapeHtml(text)}</textarea>
               <div id="fauxPlaceholder" class="custom-placeholder" style="display: ${text.length === 0 ? 'flex' : 'none'};"><span class="cursor"></span>請輸入訊息</div>
-              ${state.handwritingOpen && state.handwritingTarget === 'prompter' ? renderHandwritingHtml() : ''}
             </div>
             <button id="prompterHandwritingToggleBtn" class="prompter-handwriting-btn" type="button">✍ 手寫補字</button>
+            ${state.handwritingOpen && state.handwritingTarget === 'prompter' ? renderHandwritingHtml() : ''}
             <button id="startBtn" class="btn-primary" ${(!isReady || textArray.length===0)?'disabled':''}>
               ▶ 開始
             </button>
