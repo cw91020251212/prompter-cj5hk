@@ -4012,12 +4012,27 @@ try {
       }, 0);
     }
     function scrollToHandwritingPanel(){
-      const panel = document.getElementById('handwritingPanel');
+      const panel = document.querySelector('#splitPaneLeft #handwritingPanel') || document.getElementById('handwritingPanel');
       if (!panel) return;
-      // content 係真正嘅滾動容器；將手寫板頂部對齊內容頂部，功能列自然褪出畫面。
-      try { panel.scrollIntoView({ block: 'start', inline: 'nearest', behavior: 'auto' }); } catch(e) { try { panel.scrollIntoView(true); } catch(err) {} }
+      // content 係真正嘅滾動容器；用實際座標設定 scrollTop，避免手機瀏覽器只滾 body 而唔滾 content。
+      const content = panel.closest('.content');
+      try {
+        if (content) {
+          const targetTop = Math.max(0, panel.getBoundingClientRect().top - content.getBoundingClientRect().top + content.scrollTop);
+          content.scrollTop = targetTop;
+        } else {
+          panel.scrollIntoView({ block: 'start', inline: 'nearest', behavior: 'auto' });
+        }
+      } catch(e) { try { panel.scrollIntoView(true); } catch(err) {} }
       setTimeout(() => {
-        try { panel.scrollIntoView({ block: 'start', inline: 'nearest', behavior: 'auto' }); } catch(e) {}
+        try {
+          if (content) {
+            const targetTop = Math.max(0, panel.getBoundingClientRect().top - content.getBoundingClientRect().top + content.scrollTop);
+            content.scrollTop = targetTop;
+          } else {
+            panel.scrollIntoView({ block: 'start', inline: 'nearest', behavior: 'auto' });
+          }
+        } catch(e) {}
       }, 60);
     }
 
