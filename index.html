@@ -378,6 +378,24 @@
     .dict-input-wrap.has-value .dict-pen{ opacity: 0; transform: scale(0.92); }
     @keyframes caretBlink { 0%, 100% { opacity: 1; } 50% { opacity: 0.15; } }
 
+    /* 手寫查字面板 */
+    .handwriting-panel{ width:min(520px, calc(100vw - 32px)); margin:0 auto; padding:16px; background:rgba(15,23,42,.92); border:1px solid #334155; border-radius:22px; box-shadow:0 16px 38px rgba(0,0,0,.22); }
+    .handwriting-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px; color:#cbd5e1; }
+    .handwriting-title{ font-size:1.12rem; color:#5eead4; letter-spacing:.04em; }
+    .handwriting-hint{ font-size:.9rem; color:#94a3b8; }
+    .handwriting-canvas-wrap{ position:relative; width:100%; aspect-ratio:1.55; min-height:180px; overflow:hidden; background:#f8fafc; border:2px solid #5eead4; border-radius:16px; touch-action:none; }
+    #handwritingCanvas{ display:block; width:100%; height:100%; cursor:crosshair; touch-action:none; }
+    .handwriting-grid{ position:absolute; inset:0; pointer-events:none; opacity:.25; background:linear-gradient(90deg,transparent 49.7%,#64748b 50%,transparent 50.3%),linear-gradient(0deg,transparent 49.7%,#64748b 50%,transparent 50.3%); }
+    .handwriting-actions{ display:flex; gap:8px; margin-top:10px; }
+    .handwriting-actions button{ flex:1; min-height:42px; border:1px solid #475569; border-radius:12px; background:#1e293b; color:#e2e8f0; cursor:pointer; font-size:1rem; }
+    .handwriting-actions button.primary{ background:#0f766e; border-color:#2dd4bf; color:#ecfeff; }
+    .handwriting-actions button:disabled{ opacity:.45; cursor:not-allowed; }
+    .handwriting-status{ min-height:1.35em; margin-top:9px; color:#94a3b8; font-size:.9rem; text-align:center; }
+    .handwriting-candidates{ display:flex; flex-wrap:wrap; justify-content:center; gap:8px; margin-top:8px; }
+    .handwriting-candidate{ width:48px; height:48px; border:1px solid #475569; border-radius:12px; background:#0b1220; color:#f8fafc; font-size:1.8rem; cursor:pointer; }
+    .handwriting-candidate:hover,.handwriting-candidate:focus{ border-color:#5eead4; background:#134e4a; }
+    @media (max-width:480px){ .handwriting-panel{ padding:12px; } .handwriting-canvas-wrap{ min-height:160px; } .handwriting-hint{ display:none; } }
+
     /* 查單字：標題列（標題要真・置中） */
     .dict-top{ width:100%; position: relative; display:flex; align-items:center; justify-content:center; gap:10px; margin-bottom: 8px; min-height: 44px; }
     .dict-title{ width:100%; text-align:center; font-size: calc(1.25rem * var(--ui-scale)); color: var(--dict-teal, #2dd4bf); letter-spacing: 0.08em; user-select:none; padding: 0 116px; pointer-events:none; }
@@ -392,6 +410,8 @@
     */
     .dict-input-row{ display:grid; grid-template-columns: 1fr auto 1fr; align-items:center; column-gap:10px; max-width: 420px; margin: 0 auto; }
     .dict-input-row .dict-input-wrap{ grid-column: 2; justify-self: center; }
+    .dict-input-tools{ grid-column:3; justify-self:end; display:flex; gap:6px; align-items:center; }
+    .dict-input-tools .dict-help-btn{ width:70px; }
 
     /* 右邊教學掣：縮細、唔再打橫迫位，亦唔會出界 */
     .dict-help-btn{
@@ -2164,6 +2184,10 @@
       savedDrafts: [],
       dictHistory: [],
       dictInput: '',
+      handwritingOpen: false,
+      handwritingStrokes: [],
+      handwritingCandidates: [],
+      handwritingStatus: '',
       inputMethod: 'cangjie',
       showRadical: true,
 
@@ -3811,6 +3835,77 @@ try {
       return window.innerWidth >= 768;
     }
 
+    function renderHandwritingHtml(){
+      if (!state.handwritingOpen) return '';
+      const status = escapeHtml(state.handwritingStatus || '寫一個中文字，再撳「辨認」');
+      const candidates = (state.handwritingCandidates || []).map((ch) => `<button type="button" class="handwriting-candidate" data-handwriting-char="${escapeHtml(ch)}" aria-label="選擇 ${escapeHtml(ch)}">${escapeHtml(ch)}</button>`).join('');
+      return `<section class="handwriting-panel" aria-label="手寫查字">
+        <div class="handwriting-head"><span class="handwriting-title">✍ 手寫查字</span><span class="handwriting-hint">可用手指、滑鼠或觸控筆</span></div>
+        <div class="handwriting-canvas-wrap"><canvas id="handwritingCanvas" width="620" height="400"></canvas><div class="handwriting-grid"></div></div>
+        <div class="handwriting-actions"><button type="button" id="handwritingClearBtn">清除重寫</button><button type="button" id="handwritingRecognizeBtn" class="primary" ${state.handwritingStrokes.length ? '' : 'disabled'}>辨認</button></div>
+        <div class="handwriting-status" id="handwritingStatus">${status}</div>
+        <div class="handwriting-candidates" id="handwritingCandidates">${candidates}</div>
+      </section>`;
+    }
+
+    function drawHandwritingCanvas(){
+      const canvas = document.getElementById('handwritingCanvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 12; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      for (const stroke of (state.handwritingStrokes || [])) {
+        if (!stroke.length) continue;
+        ctx.beginPath(); ctx.moveTo(stroke[0][0], stroke[0][1]);
+        for (let i=1;i<stroke.length;i++) ctx.lineTo(stroke[i][0], stroke[i][1]);
+        ctx.stroke();
+      }
+    }
+
+    function handwritingPoint(e, canvas){
+      const r = canvas.getBoundingClientRect();
+      return [Math.max(0, Math.min(canvas.width, (e.clientX-r.left)*canvas.width/r.width)), Math.max(0, Math.min(canvas.height, (e.clientY-r.top)*canvas.height/r.height)), Date.now()];
+    }
+
+    async function recognizeHandwriting(){
+      const strokes = state.handwritingStrokes || [];
+      if (!strokes.length) return;
+      const status = document.getElementById('handwritingStatus');
+      const btn = document.getElementById('handwritingRecognizeBtn');
+      if (btn) btn.disabled = true;
+      if (status) status.textContent = '辨認中……';
+      state.handwritingStatus = '辨認中……';
+      try {
+        const ink = strokes.map(stroke => [stroke.map(p=>Math.round(p[0])), stroke.map(p=>Math.round(p[1])), stroke.map(p=>Math.round(p[2]))]);
+        const payload = { device:navigator.userAgent, options:'enable_pre_space', requests:[{ writing_guide:{writing_area_width:620,writing_area_height:400}, ink, language:'zh-Hant' }] };
+        const res = await fetch('https://www.google.com/inputtools/request?ime=handwriting&app=gws&cs=1', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
+        if (!res.ok) throw new Error('recognition request failed');
+        const data = await res.json();
+        const chars = data?.[1]?.[0]?.[1] || data?.[1]?.[0]?.[0] || [];
+        const candidates = Array.from(new Set(String(chars).split(''))).filter(ch => /\p{Script=Han}/u.test(ch)).slice(0,10);
+        if (!candidates.length) throw new Error('no candidates');
+        state.handwritingCandidates = candidates; state.handwritingStatus = '揀一個字開始查詢'; render();
+      } catch (err) {
+        state.handwritingStatus = '暫時辨認唔到，請寫大啲、少啲筆劃，或者再試一次';
+        state.handwritingCandidates = []; render();
+      }
+    }
+
+    function bindHandwriting(){
+      const canvas = document.getElementById('handwritingCanvas');
+      if (!canvas || canvas.dataset.bound) return;
+      canvas.dataset.bound = '1'; let drawing = false;
+      canvas.addEventListener('pointerdown', e => { e.preventDefault(); drawing=true; canvas.setPointerCapture?.(e.pointerId); state.handwritingStrokes.push([handwritingPoint(e,canvas)]); drawHandwritingCanvas(); updateHandwritingButtons(); });
+      canvas.addEventListener('pointermove', e => { if (!drawing) return; e.preventDefault(); const stroke=state.handwritingStrokes[state.handwritingStrokes.length-1]; stroke.push(handwritingPoint(e,canvas)); drawHandwritingCanvas(); });
+      const end = () => { drawing=false; };
+      canvas.addEventListener('pointerup', end); canvas.addEventListener('pointercancel', end); canvas.addEventListener('pointerleave', end);
+      document.getElementById('handwritingClearBtn')?.addEventListener('click', () => { state.handwritingStrokes=[]; state.handwritingCandidates=[]; state.handwritingStatus='寫一個中文字，再撳「辨認」'; render(); setTimeout(bindHandwriting,0); });
+      document.getElementById('handwritingRecognizeBtn')?.addEventListener('click', recognizeHandwriting);
+      document.querySelectorAll('[data-handwriting-char]').forEach(el => el.addEventListener('click', () => { state.dictInput=el.dataset.handwritingChar||''; addToDictHistory(state.dictInput); state.handwritingOpen=false; state.handwritingCandidates=[]; state.handwritingStrokes=[]; state.handwritingStatus=''; render(); }));
+      drawHandwritingCanvas(); updateHandwritingButtons();
+    }
+    function updateHandwritingButtons(){ const b=document.getElementById('handwritingRecognizeBtn'); if(b) b.disabled=!(state.handwritingStrokes||[]).length; }
+
     function renderMain() {
       const active = state.activeTab;
       const text = state.inputText;
@@ -3930,8 +4025,9 @@ try {
                   <div class="dict-caret"></div>
                 </div>
               </div>
-              <button id="replayTourBtnDict" class="dict-help-btn" title="重播教學"><span class="help-ic" aria-hidden="true">💡</span><span class="help-txt">教學</span></button>
+              <div class="dict-input-tools"><button id="handwritingToggleBtn" class="dict-help-btn" type="button" title="用手寫查字"><span class="help-ic" aria-hidden="true">✍</span><span class="help-txt">手寫</span></button><button id="replayTourBtnDict" class="dict-help-btn" title="重播教學"><span class="help-ic" aria-hidden="true">💡</span><span class="help-txt">教學</span></button></div>
             </div>
+            ${renderHandwritingHtml()}
             <div class="toggle-bar" style="max-width:380px;margin:0 auto 10px;">
               <button id="dictBtnQuick" class="${method==='quick'?'active':''}">
                 <span class="btn-title">速成</span>
@@ -4111,8 +4207,9 @@ try {
                   <div class="dict-caret"></div>
                 </div>
               </div>
-              <button id="replayTourBtn" class="dict-help-btn" title="重播教學"><span class="help-ic" aria-hidden="true">💡</span><span class="help-txt">教學</span></button>
+              <div class="dict-input-tools"><button id="handwritingToggleBtn" class="dict-help-btn" type="button" title="用手寫查字"><span class="help-ic" aria-hidden="true">✍</span><span class="help-txt">手寫</span></button><button id="replayTourBtn" class="dict-help-btn" title="重播教學"><span class="help-ic" aria-hidden="true">💡</span><span class="help-txt">教學</span></button></div>
             </div>
+            ${renderHandwritingHtml()}
             <div class="toggle-bar" style="max-width:380px;margin:0 auto 10px;">
               <button id="dictBtnQuick" class="${method==='quick'?'active':''}">
                 <span class="btn-title">速成</span>
@@ -4450,6 +4547,16 @@ try {
       document.getElementById('dictBtnCangjie')?.addEventListener('click', () => toggleDictMethodAndRad('cangjie'));
 
       
+      const handwritingToggle = document.getElementById('handwritingToggleBtn');
+      if (handwritingToggle) {
+        handwritingToggle.addEventListener('click', (e) => {
+          e.preventDefault(); state.handwritingOpen = !state.handwritingOpen;
+          if (!state.handwritingOpen) { state.handwritingCandidates=[]; state.handwritingStrokes=[]; state.handwritingStatus=''; }
+          render(); if (state.handwritingOpen) setTimeout(bindHandwriting, 0);
+        });
+      }
+      if (state.handwritingOpen) setTimeout(bindHandwriting, 0);
+
       // 粵語同音字（NEW v20260626）
       const jyFab = document.getElementById('jyutpingFab');
       const jyPanel = document.getElementById('jyutpingPanel');
@@ -5144,6 +5251,16 @@ try {
           }, 0);
         });
       }
+
+      const handwritingToggle = document.getElementById('handwritingToggleBtn');
+      if (handwritingToggle) {
+        handwritingToggle.addEventListener('click', (e) => {
+          e.preventDefault(); state.handwritingOpen = !state.handwritingOpen;
+          if (!state.handwritingOpen) { state.handwritingCandidates=[]; state.handwritingStrokes=[]; state.handwritingStatus=''; }
+          render(); if (state.handwritingOpen) setTimeout(bindHandwriting, 0);
+        });
+      }
+      if (state.handwritingOpen) setTimeout(bindHandwriting, 0);
 
       function toggleDictMethodAndRad(methodKey){
         if (state.inputMethod !== methodKey) {
@@ -7269,4 +7386,3 @@ try {
 <script defer src="https://static.cloudflareinsights.com/beacon.min.js/v833ccba57c9e4d2798f2e76cebdd09a11778172276447" integrity="sha512-57MDmcccJXYtNnH+ZiBwzC4jb2rvgVCEokYN+L/nLlmO8rfYT/gIpW2A569iJ/3b+0UEasghjuZH/ma3wIs/EQ==" data-cf-beacon='{"version":"2024.11.0","token":"4edd5f8ec12a48cfa682ab8261b80a79","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
 </body>
 </html>
-
