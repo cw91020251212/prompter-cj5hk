@@ -396,7 +396,10 @@
     /* 手寫查字面板 */
     .handwriting-panel{ width:min(520px, calc(100vw - 32px)); margin:0 auto; padding:16px; background:rgba(15,23,42,.92); border:1px solid #334155; border-radius:22px; box-shadow:0 16px 38px rgba(0,0,0,.22); scroll-margin-top:0; }
     .handwriting-panel.is-compact{ padding:12px; }
-    .handwriting-panel.is-compact .handwriting-canvas-wrap{ height:200px; min-height:0; aspect-ratio:auto; }
+    .handwriting-panel.is-compact .handwriting-canvas-wrap{
+      height:var(--handwriting-compact-height, 200px); min-height:0; aspect-ratio:auto;
+      overflow:hidden; overflow-anchor:none;
+    }
     .handwriting-compact-tools{ display:none !important; }
     .handwriting-compact-tools button{ border:1px solid #475569; background:rgba(255,255,255,.07); color:#e2e8f0; border-radius:10px; padding:6px 10px; font-weight:800; cursor:pointer; }
     .handwriting-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px; color:#cbd5e1; }
@@ -3945,7 +3948,8 @@ try {
       const status = escapeHtml(state.handwritingStatus || '寫一個中文字，再撳「辨認」');
       const candidates = (state.handwritingCandidates || []).map((ch) => `<button type="button" class="handwriting-candidate" data-handwriting-char="${escapeHtml(ch)}" aria-label="選擇 ${escapeHtml(ch)}">${escapeHtml(ch)}</button>`).join('');
       const compactClass = state.handwritingCompact ? ' is-compact' : '';
-      return `<section id="handwritingPanel" class="handwriting-panel${compactClass}" aria-label="手寫查字">
+      const compactHeightStyle = state.handwritingCompactHeight ? ` style="--handwriting-compact-height:${state.handwritingCompactHeight}px"` : '';
+      return `<section id="handwritingPanel" class="handwriting-panel${compactClass}"${compactHeightStyle} aria-label="手寫查字">
         <div class="handwriting-head"><span class="handwriting-title">✍ ${state.handwritingTarget === 'prompter' ? '手寫補字' : '手寫查字'}</span><span class="handwriting-hint">可用手指、滑鼠或觸控筆</span></div>
         <div class="handwriting-canvas-wrap"><canvas id="handwritingCanvas" width="620" height="400"></canvas><div class="handwriting-grid"></div></div>
         <div class="handwriting-actions"><button type="button" id="handwritingClearBtn">清除重寫</button><button type="button" id="handwritingRecognizeBtn" class="primary" ${state.handwritingStrokes.length ? '' : 'disabled'}>辨認</button></div>
@@ -3977,6 +3981,9 @@ try {
     async function recognizeHandwriting(){
       const strokes = state.handwritingStrokes || [];
       if (!strokes.length) return;
+      const canvasWrap = document.querySelector('#handwritingPanel .handwriting-canvas-wrap');
+      const originalCanvasHeight = canvasWrap ? canvasWrap.getBoundingClientRect().height : 0;
+      if (originalCanvasHeight > 0) state.handwritingCompactHeight = Math.max(80, Math.round(originalCanvasHeight / 2));
       const status = document.getElementById('handwritingStatus');
       const btn = document.getElementById('handwritingRecognizeBtn');
       if (btn) btn.disabled = true;
@@ -3994,7 +4001,7 @@ try {
         state.handwritingCandidates = candidates; state.handwritingStatus = '揀一個字開始查詢'; state.handwritingCompact = true; renderHandwritingKeepingScroll();
       } catch (err) {
         state.handwritingStatus = '暫時辨認唔到，請寫大啲、少啲筆劃，或者再試一次';
-        state.handwritingCandidates = []; state.handwritingCompact = false; render();
+        state.handwritingCandidates = []; state.handwritingCompact = false; state.handwritingCompactHeight = 0; render();
       }
     }
 
@@ -4016,6 +4023,7 @@ try {
       state.handwritingStrokes = [];
       state.handwritingCandidates = [];
       state.handwritingCompact = false;
+      state.handwritingCompactHeight = 0;
       state.handwritingStatus = '已加入文章，可以繼續寫下一個字';
       renderHandwritingKeepingScroll();
       setTimeout(() => {
@@ -4077,7 +4085,7 @@ try {
         if (state.handwritingOpen) {
           // 先收起手機原生鍵盤；手寫板關閉之前，textarea 會保持 readonly。
           textarea?.blur();
-          state.handwritingStrokes = []; state.handwritingCandidates = []; state.handwritingStatus = ''; state.handwritingCompact = false;
+          state.handwritingStrokes = []; state.handwritingCandidates = []; state.handwritingStatus = ''; state.handwritingCompact = false; state.handwritingCompactHeight = 0;
           // 手寫係逐字追加，開啟時由文章尾部開始，避免 render 後 selection 跌返最左邊。
           state.handwritingCursor = textarea?.value.length || 0;
         }
@@ -4099,8 +4107,8 @@ try {
       canvas.addEventListener('pointermove', e => { if (!drawing) return; e.preventDefault(); const stroke=state.handwritingStrokes[state.handwritingStrokes.length-1]; stroke.push(handwritingPoint(e,canvas)); drawHandwritingCanvas(); });
       const end = () => { drawing=false; };
       canvas.addEventListener('pointerup', end); canvas.addEventListener('pointercancel', end); canvas.addEventListener('pointerleave', end);
-      document.getElementById('handwritingClearBtn')?.addEventListener('click', () => { state.handwritingStrokes=[]; state.handwritingCandidates=[]; state.handwritingCompact=false; state.handwritingStatus='寫一個中文字，再撳「辨認」'; render(); setTimeout(bindHandwriting,0); });
-      document.getElementById('handwritingExpandBtn')?.addEventListener('click', () => { state.handwritingCompact=false; state.handwritingCandidates=[]; state.handwritingStatus='寫一個中文字，再撳「辨認」'; render(); setTimeout(bindHandwriting,0); });
+      document.getElementById('handwritingClearBtn')?.addEventListener('click', () => { state.handwritingStrokes=[]; state.handwritingCandidates=[]; state.handwritingCompact=false; state.handwritingCompactHeight=0; state.handwritingStatus='寫一個中文字，再撳「辨認」'; render(); setTimeout(bindHandwriting,0); });
+      document.getElementById('handwritingExpandBtn')?.addEventListener('click', () => { state.handwritingCompact=false; state.handwritingCompactHeight=0; state.handwritingCandidates=[]; state.handwritingStatus='寫一個中文字，再撳「辨認」'; render(); setTimeout(bindHandwriting,0); });
       document.getElementById('handwritingRecognizeBtn')?.addEventListener('click', recognizeHandwriting);
       document.querySelectorAll('[data-handwriting-char]').forEach(el => el.addEventListener('click', () => {
         const ch = el.dataset.handwritingChar || '';
