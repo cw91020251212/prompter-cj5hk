@@ -2699,7 +2699,7 @@ try {
       return `
         <div class="cex ${state.charExtraOpen ? 'open' : ''}" id="charExtraWrap">
           <div class="cex-head" onclick="state.charExtraOpen = !state.charExtraOpen; this.parentElement.classList.toggle('open')">
-            <div class="cex-title">📚 拼音／近似字（在線增強）</div>
+            <div class="cex-title">📚 字義／用法（在線增強）</div>
             <div class="cex-status" id="charExtraStatus">…</div>
             <button class="cex-retry" id="charExtraSelfTest" title="自檢（睇 Console）" onclick="event.stopPropagation()">自檢</button>
             <button class="cex-retry" id="charExtraRetry" title="重試在線資料" onclick="event.stopPropagation()">重試</button>
@@ -2766,11 +2766,12 @@ try {
           st.className = 'cex-status ' + (hasNet ? '' : 'offline');
         }
 
-        const d0 = cached || { pinyin:'', variants:[], mandarinHomophones:[], traditional:'', definition:'' };
+        const d0 = cached || { pinyin:'', words:[], variants:[], mandarinHomophones:[], traditional:'', definition:'' };
         const renderBody = (d) => {
           const pinyin = String(d?.pinyin || '').trim();
           const traditional = String(d?.traditional || '').trim();
           const definition = String(d?.definition || '').trim();
+          const words = (d?.words || []).filter(Boolean).slice(0, 24);
           const variants = (d?.variants || []).slice(0, 24);
           const homo = (d?.mandarinHomophones || []).slice(0, 48);
 
@@ -2779,8 +2780,11 @@ try {
             : '';
 
           const defHtml = definition
-            ? `<div class="cex-row"><div class="cex-row-title">字義</div><div class="cex-muted">${escapeHtml(definition)}</div></div>`
-            : '';
+            ? `<div class="cex-row"><div class="cex-row-title">本字意思</div><div class="cex-muted">${escapeHtml(definition)}</div></div>`
+            : `<div class="cex-row"><div class="cex-row-title">本字意思</div><div class="cex-muted">（在線資料未提供字義）</div></div>`;
+          const wordsHtml = words.length
+            ? `<div class="cex-row"><div class="cex-row-title">常用用法／詞語</div><div class="cex-chips">${words.map(x=>`<button class="cex-chip" data-copy="${escapeHtml(x)}" title="點擊複製詞語">${escapeHtml(x)}</button>`).join('')}</div><div class="cex-sub">（由常用詞組推介；點一下可複製）</div></div>`
+            : `<div class="cex-row"><div class="cex-row-title">常用用法／詞語</div><div class="cex-muted">（在線資料未提供常用詞組）</div></div>`;
 
           const pinyinHtml = pinyin
             ? `<div class="cex-row"><div class="cex-row-title">拼音</div><div class="cex-chips"><button class="cex-chip" data-copy="${escapeHtml(pinyin)}" title="點擊複製">${escapeHtml(pinyin)}</button></div></div>`
@@ -2794,7 +2798,7 @@ try {
             ? `<div class="cex-row"><div class="cex-row-title">普通話同音字</div><div class="cex-chips">${homo.map(x=>`<button class="cex-chip" data-dict-pick="${escapeHtml(x)}" title="用呢個字再查">${escapeHtml(x)}</button>`).join('')}</div></div>`
             : `<div class="cex-row"><div class="cex-row-title">普通話同音字</div><div class="cex-muted">（未有）</div></div>`;
 
-          body.innerHTML = tradHtml + defHtml + pinyinHtml + vHtml + hHtml;
+          body.innerHTML = tradHtml + defHtml + wordsHtml + pinyinHtml + vHtml + hHtml;
         };
 
         renderBody(d0);
