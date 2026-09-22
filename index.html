@@ -276,7 +276,7 @@
     }
     .prompter-area textarea:focus { border-color: #3b82f6; }
     .prompter-area textarea::placeholder { color: transparent; }
-    .prompter-handwriting-btn{ align-self:flex-start; margin-top:10px; padding:10px 16px; border:1px solid #2dd4bf; border-radius:12px; background:rgba(13,148,136,.18); color:#99f6e4; cursor:pointer; font-size:1rem; }
+    .prompter-handwriting-btn{ align-self:flex-start; margin-top:10px; padding:10px 16px; border:1px solid #2dd4bf; border-radius:12px; background:rgba(13,148,136,.18); color:#99f6e4; cursor:pointer; font-size:1rem; box-shadow:none; text-shadow:none; filter:none; }
     .prompter-handwriting-btn:hover{ background:rgba(13,148,136,.3); }
     
     .custom-placeholder {
@@ -451,6 +451,11 @@
     .dict-help-btn .help-ic{
       font-size: 1.55rem;
       line-height: 1;
+      text-shadow: none;
+      filter: none;
+    }
+    /* 只有教學燈泡保留光效；手寫筆係普通按鈕圖案。 */
+    #replayTourBtnDict .help-ic{
       text-shadow:
         0 0 10px rgba(250, 204, 21, 0.65),
         0 0 18px rgba(245, 158, 11, 0.45);
