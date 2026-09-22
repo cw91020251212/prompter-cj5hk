@@ -3982,19 +3982,21 @@ try {
     function insertHandwritingCharacter(ch){
       const textarea = document.getElementById('inputTextArea');
       if (!textarea || !ch) return;
-      const start = Number.isInteger(textarea.selectionStart) ? textarea.selectionStart : textarea.value.length;
+      const start = Number.isInteger(textarea.selectionStart) && textarea.selectionStart >= 0 ? textarea.selectionStart : (Number.isInteger(state.handwritingCursor) ? state.handwritingCursor : textarea.value.length);
       const end = Number.isInteger(textarea.selectionEnd) ? textarea.selectionEnd : start;
       const next = textarea.value.slice(0, start) + ch + textarea.value.slice(end);
       const caret = start + ch.length;
       state.inputText = next;
+      state.handwritingCursor = caret;
       autoSavePrompterInput();
       state.handwritingStrokes = [];
       state.handwritingCandidates = [];
       state.handwritingStatus = '已加入文章，可以繼續寫下一個字';
       render();
       setTimeout(() => {
+        // 手寫模式期間絕對唔 focus textarea，避免手機原生輸入法重新彈出及推郁畫面。
         const el = document.getElementById('inputTextArea');
-        if (el) { el.focus(); el.setSelectionRange(caret, caret); }
+        if (el) { el.blur(); try { el.setSelectionRange(caret, caret); } catch(e) {} }
         bindHandwriting();
       }, 0);
     }
@@ -4009,6 +4011,8 @@ try {
         state.handwritingTarget = 'prompter';
         state.handwritingOpen = !state.handwritingOpen;
         if (state.handwritingOpen) {
+          // 先收起手機原生鍵盤；手寫板關閉之前，textarea 會保持 readonly。
+          textarea?.blur();
           state.handwritingStrokes = []; state.handwritingCandidates = []; state.handwritingStatus = '';
           state.handwritingCursor = Number.isInteger(textarea?.selectionStart) ? textarea.selectionStart : (textarea?.value.length || 0);
         }
@@ -4098,7 +4102,7 @@ try {
               </div>
             </div>
             <div style="position:relative;">
-              <textarea id="inputTextArea" placeholder=" ">${escapeHtml(text)}</textarea>
+              <textarea id="inputTextArea" placeholder=" " ${state.handwritingOpen && state.handwritingTarget === 'prompter' ? 'readonly inputmode="none"' : 'inputmode="text"'}>${escapeHtml(text)}</textarea>
               <div id="fauxPlaceholder" class="custom-placeholder" style="display: ${text.length === 0 ? 'flex' : 'none'};"><span class="cursor"></span>請輸入訊息</div>
             </div>
             <button id="prompterHandwritingToggleBtn" class="prompter-handwriting-btn" type="button">✍ 手寫補字</button>
@@ -4288,7 +4292,7 @@ try {
               </div>
             </div>
             <div style="position:relative;">
-              <textarea id="inputTextArea" placeholder=" ">${escapeHtml(text)}</textarea>
+              <textarea id="inputTextArea" placeholder=" " ${state.handwritingOpen && state.handwritingTarget === 'prompter' ? 'readonly inputmode="none"' : 'inputmode="text"'}>${escapeHtml(text)}</textarea>
               <div id="fauxPlaceholder" class="custom-placeholder" style="display: ${text.length === 0 ? 'flex' : 'none'};"><span class="cursor"></span>請輸入訊息</div>
             </div>
             <button id="prompterHandwritingToggleBtn" class="prompter-handwriting-btn" type="button">✍ 手寫補字</button>
