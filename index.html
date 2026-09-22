@@ -276,6 +276,7 @@
     }
     /* 手寫板開啟期間：提詞輸入框只保留一行，固定喺頂部，避免同下面手寫板爭高度。 */
     .prompter-area .prompter-input-wrap.handwriting-active{ flex: 0 0 auto !important; min-height: 0 !important; }
+    .prompter-input-wrap{ position: relative; width: 100%; }
     .prompter-area textarea.prompter-handwriting-input{
       height: calc((clamp(1.25rem, 2.2vw, 1.8rem) * var(--ui-scale) * 1.4) + 36px) !important;
       min-height: 0 !important; max-height: calc((clamp(1.25rem, 2.2vw, 1.8rem) * var(--ui-scale) * 1.4) + 36px) !important;
