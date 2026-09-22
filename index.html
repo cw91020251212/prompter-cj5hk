@@ -803,6 +803,8 @@
     .cex-sub{ color:#64748b; font-size:.82rem; margin-top:7px; }
     .cex-examples{ display:flex; flex-direction:column; gap:8px; }
     .cex-example{ color:#dbeafe; background:rgba(30,64,175,.18); border-left:3px solid #60a5fa; border-radius:8px; padding:8px 10px; line-height:1.45; font-size:.98rem; }
+    .cex-phrase-details{ margin-top:10px; padding:10px 12px; border-radius:12px; background:rgba(14,116,144,.16); border:1px solid rgba(45,212,191,.35); color:#dbeafe; line-height:1.5; }
+    .cex-phrase-details strong{ color:#99f6e4; }
 
     .dict-hitem{ display:inline-flex; align-items:stretch; border-radius: 999px; overflow:hidden; border: 1px solid #334155; background: rgba(255,255,255,0.04); }
     .dict-hpick{ appearance:none; border:0; background: transparent; color:#f8fafc; font-weight: 650; padding: 12px 16px; cursor:pointer; min-width: 56px; font-size: 1.6rem; line-height: 1.1; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
@@ -2652,6 +2654,24 @@ try {
       out.words = uniqList(phrases).slice(0, 12);
       return out;
     }
+    function cleanPhraseMarkdown(value){
+      return String(value || '').replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1').replace(/[*#`]/g, '').replace(/\s+/g, ' ').trim();
+    }
+    function parsePhraseExplanation(md){
+      const s = String(md || '');
+      const take = (re) => {
+        const m = s.match(re);
+        return m && m[1] ? cleanPhraseMarkdown(m[1]).slice(0, 260) : '';
+      };
+      const definition = take(/(?:^|\n)解释\s+([\s\S]*?)(?=\n(?:出处|示例|语法|近义词|反义词)\b|$)/);
+      const example = take(/(?:^|\n)示例\s+([\s\S]*?)(?=\n语法\b|$)/);
+      const grammar = take(/(?:^|\n)语法\s+([^\n]+)/);
+      return definition ? { definition, example, grammar } : null;
+    }
+    async function fetchPhraseExplanation(phrase){
+      const text = await fetchTextWithTimeout(`https://r.jina.ai/https://www.zdic.net/hans/${encodeURIComponent(phrase)}`, 6500).catch(() => '');
+      return parsePhraseExplanation(text);
+    }
 
     async function fetchOnlineExtrasForChar(ch){
       const one = Array.from(String(ch||'').trim())[0];
@@ -2815,7 +2835,7 @@ try {
             ? `<div class="cex-row"><div class="cex-row-title">本字意思</div><div class="cex-muted">${escapeHtml(definition)}</div></div>`
             : `<div class="cex-row"><div class="cex-row-title">本字意思</div><div class="cex-muted">（在線資料未提供字義）</div></div>`;
           const wordsHtml = words.length
-            ? `<div class="cex-row"><div class="cex-row-title">常用用法／詞語</div><div class="cex-chips">${words.map(x=>`<button class="cex-chip" data-copy="${escapeHtml(x)}" title="點擊複製詞語">${escapeHtml(x)}</button>`).join('')}</div><div class="cex-sub">（由常用詞組推介；點一下可複製）</div></div>`
+            ? `<div class="cex-row"><div class="cex-row-title">常用用法／詞語</div><div class="cex-chips">${words.map(x=>`<button class="cex-chip" data-phrase="${escapeHtml(x)}" data-copy="${escapeHtml(x)}" title="撳一下睇白話解釋，再撳可複製">${escapeHtml(x)}</button>`).join('')}</div><div class="cex-sub">（撳詞語睇白話解釋；需要時可以再複製）</div><div id="cexPhraseDetails"></div></div>`
             : `<div class="cex-row"><div class="cex-row-title">常用用法／詞語</div><div class="cex-muted">（在線資料未提供常用詞組）</div></div>`;
           const examplesHtml = examples.length
             ? `<div class="cex-row"><div class="cex-row-title">例句／實際用法</div><div class="cex-examples">${examples.map(x=>`<div class="cex-example">${escapeHtml(x)}</div>`).join('')}</div></div>`
@@ -2851,11 +2871,25 @@ try {
           }
         }
 
-        // 綁一次：點擊複製
+        // 綁一次：點擊詞語先查白話解釋；其他 chip 仍然直接複製
         if (wrap && !wrap.dataset.copybound) {
           wrap.dataset.copybound = '1';
           wrap.addEventListener('click', async (e) => {
             const t = e.target;
+            const phraseBtn = t && t.closest ? t.closest('[data-phrase]') : null;
+            if (phraseBtn) {
+              e.preventDefault();
+              e.stopPropagation();
+              const phrase = String(phraseBtn.getAttribute('data-phrase') || '').trim();
+              const details = document.getElementById('cexPhraseDetails');
+              if (!phrase || !details) return;
+              details.innerHTML = `<div class="cex-phrase-details">⏳ 正在搵「${escapeHtml(phrase)}」嘅白話解釋…</div>`;
+              const info = await fetchPhraseExplanation(phrase);
+              details.innerHTML = info
+                ? `<div class="cex-phrase-details"><strong>「${escapeHtml(phrase)}」白話解釋</strong><div>${escapeHtml(info.definition)}</div>${info.example ? `<div class="cex-sub">例句：${escapeHtml(info.example)}</div>` : ''}${info.grammar ? `<div class="cex-sub">用法：${escapeHtml(info.grammar)}</div>` : ''}</div>`
+                : `<div class="cex-phrase-details">暫時搵唔到「${escapeHtml(phrase)}」嘅詳細解釋，可能係網絡或字典資料未提供。</div>`;
+              return;
+            }
             const btn = t && t.closest ? t.closest('[data-copy]') : null;
             if (!btn) return;
             e.preventDefault();
