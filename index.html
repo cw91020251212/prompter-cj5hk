@@ -389,7 +389,7 @@
     @keyframes caretBlink { 0%, 100% { opacity: 1; } 50% { opacity: 0.15; } }
 
     /* 手寫查字面板 */
-    .handwriting-panel{ width:min(520px, calc(100vw - 32px)); margin:0 auto; padding:16px; background:rgba(15,23,42,.92); border:1px solid #334155; border-radius:22px; box-shadow:0 16px 38px rgba(0,0,0,.22); }
+    .handwriting-panel{ width:min(520px, calc(100vw - 32px)); margin:0 auto; padding:16px; background:rgba(15,23,42,.92); border:1px solid #334155; border-radius:22px; box-shadow:0 16px 38px rgba(0,0,0,.22); scroll-margin-top:0; }
     .handwriting-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px; color:#cbd5e1; }
     .handwriting-title{ font-size:1.12rem; color:#5eead4; letter-spacing:.04em; }
     .handwriting-hint{ font-size:.9rem; color:#94a3b8; }
@@ -3935,7 +3935,7 @@ try {
       if (!state.handwritingOpen) return '';
       const status = escapeHtml(state.handwritingStatus || '寫一個中文字，再撳「辨認」');
       const candidates = (state.handwritingCandidates || []).map((ch) => `<button type="button" class="handwriting-candidate" data-handwriting-char="${escapeHtml(ch)}" aria-label="選擇 ${escapeHtml(ch)}">${escapeHtml(ch)}</button>`).join('');
-      return `<section class="handwriting-panel" aria-label="手寫查字">
+      return `<section id="handwritingPanel" class="handwriting-panel" aria-label="手寫查字">
         <div class="handwriting-head"><span class="handwriting-title">✍ ${state.handwritingTarget === 'prompter' ? '手寫補字' : '手寫查字'}</span><span class="handwriting-hint">可用手指、滑鼠或觸控筆</span></div>
         <div class="handwriting-canvas-wrap"><canvas id="handwritingCanvas" width="620" height="400"></canvas><div class="handwriting-grid"></div></div>
         <div class="handwriting-actions"><button type="button" id="handwritingClearBtn">清除重寫</button><button type="button" id="handwritingRecognizeBtn" class="primary" ${state.handwritingStrokes.length ? '' : 'disabled'}>辨認</button></div>
@@ -3981,9 +3981,11 @@ try {
         const candidates = Array.from(new Set(String(chars).split(''))).filter(ch => /\p{Script=Han}/u.test(ch)).slice(0,10);
         if (!candidates.length) throw new Error('no candidates');
         state.handwritingCandidates = candidates; state.handwritingStatus = '揀一個字開始查詢'; render();
+        setTimeout(scrollToHandwritingPanel, 0);
       } catch (err) {
         state.handwritingStatus = '暫時辨認唔到，請寫大啲、少啲筆劃，或者再試一次';
         state.handwritingCandidates = []; render();
+        setTimeout(scrollToHandwritingPanel, 0);
       }
     }
 
@@ -4006,7 +4008,17 @@ try {
         const el = document.getElementById('inputTextArea');
         if (el) { el.blur(); try { el.setSelectionRange(caret, caret); } catch(e) {} try { el.scrollLeft = el.scrollWidth; } catch(e) {} }
         bindHandwriting();
+        scrollToHandwritingPanel();
       }, 0);
+    }
+    function scrollToHandwritingPanel(){
+      const panel = document.getElementById('handwritingPanel');
+      if (!panel) return;
+      // content 係真正嘅滾動容器；將手寫板頂部對齊內容頂部，功能列自然褪出畫面。
+      try { panel.scrollIntoView({ block: 'start', inline: 'nearest', behavior: 'auto' }); } catch(e) { try { panel.scrollIntoView(true); } catch(err) {} }
+      setTimeout(() => {
+        try { panel.scrollIntoView({ block: 'start', inline: 'nearest', behavior: 'auto' }); } catch(e) {}
+      }, 60);
     }
 
     function bindPrompterHandwritingControls(){
@@ -4029,6 +4041,7 @@ try {
           bindHandwriting();
           const el = document.getElementById('inputTextArea');
           if (el) { try { el.blur(); el.scrollLeft = el.scrollWidth; } catch(e) {} }
+          scrollToHandwritingPanel();
         }, 0);
       });
     }
