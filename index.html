@@ -274,6 +274,14 @@
       width: 100%; height: min(40vh, 340px); background: #0f172a; border: 2px solid #475569; border-radius: 18px; padding: 18px;
       color: white; font-size: calc(clamp(1.25rem, 2.2vw, 1.8rem) * var(--ui-scale)); line-height: 1.4; resize: vertical; outline: none; transition: border 0.2s;
     }
+    /* 手寫板開啟期間：提詞輸入框只保留一行，固定喺頂部，避免同下面手寫板爭高度。 */
+    .prompter-area .prompter-input-wrap.handwriting-active{ flex: 0 0 auto !important; min-height: 0 !important; }
+    .prompter-area textarea.prompter-handwriting-input{
+      height: calc((clamp(1.25rem, 2.2vw, 1.8rem) * var(--ui-scale) * 1.4) + 36px) !important;
+      min-height: 0 !important; max-height: calc((clamp(1.25rem, 2.2vw, 1.8rem) * var(--ui-scale) * 1.4) + 36px) !important;
+      padding-top: 18px; padding-bottom: 18px; resize: none; overflow-x: auto; overflow-y: hidden;
+      white-space: nowrap; line-height: 1.4;
+    }
     .prompter-area textarea:focus { border-color: #3b82f6; }
     .prompter-area textarea::placeholder { color: transparent; }
     .prompter-handwriting-btn{ align-self:flex-start; margin-top:10px; padding:10px 16px; border:1px solid #2dd4bf; border-radius:12px; background:rgba(13,148,136,.18); color:#99f6e4; cursor:pointer; font-size:1rem; box-shadow:none; text-shadow:none; filter:none; }
@@ -3996,7 +4004,7 @@ try {
       setTimeout(() => {
         // 手寫模式期間絕對唔 focus textarea，避免手機原生輸入法重新彈出及推郁畫面。
         const el = document.getElementById('inputTextArea');
-        if (el) { el.blur(); try { el.setSelectionRange(caret, caret); } catch(e) {} }
+        if (el) { el.blur(); try { el.setSelectionRange(caret, caret); } catch(e) {} try { el.scrollLeft = el.scrollWidth; } catch(e) {} }
         bindHandwriting();
       }, 0);
     }
@@ -4017,7 +4025,11 @@ try {
           state.handwritingCursor = Number.isInteger(textarea?.selectionStart) ? textarea.selectionStart : (textarea?.value.length || 0);
         }
         render();
-        if (state.handwritingOpen) setTimeout(bindHandwriting, 0);
+        if (state.handwritingOpen) setTimeout(() => {
+          bindHandwriting();
+          const el = document.getElementById('inputTextArea');
+          if (el) { try { el.blur(); el.scrollLeft = el.scrollWidth; } catch(e) {} }
+        }, 0);
       });
     }
 
@@ -4101,8 +4113,8 @@ try {
                 </button>
               </div>
             </div>
-            <div style="position:relative;">
-              <textarea id="inputTextArea" placeholder=" " ${state.handwritingOpen && state.handwritingTarget === 'prompter' ? 'readonly inputmode="none"' : 'inputmode="text"'}>${escapeHtml(text)}</textarea>
+            <div class="prompter-input-wrap ${state.handwritingOpen && state.handwritingTarget === 'prompter' ? 'handwriting-active' : ''}">
+              <textarea class="${state.handwritingOpen && state.handwritingTarget === 'prompter' ? 'prompter-handwriting-input' : ''}" id="inputTextArea" placeholder=" " ${state.handwritingOpen && state.handwritingTarget === 'prompter' ? 'readonly inputmode="none"' : 'inputmode="text"'}>${escapeHtml(text)}</textarea>
               <div id="fauxPlaceholder" class="custom-placeholder" style="display: ${text.length === 0 ? 'flex' : 'none'};"><span class="cursor"></span>請輸入訊息</div>
             </div>
             <button id="prompterHandwritingToggleBtn" class="prompter-handwriting-btn" type="button">✍ 手寫補字</button>
@@ -4291,8 +4303,8 @@ try {
                 </button>
               </div>
             </div>
-            <div style="position:relative;">
-              <textarea id="inputTextArea" placeholder=" " ${state.handwritingOpen && state.handwritingTarget === 'prompter' ? 'readonly inputmode="none"' : 'inputmode="text"'}>${escapeHtml(text)}</textarea>
+            <div class="prompter-input-wrap ${state.handwritingOpen && state.handwritingTarget === 'prompter' ? 'handwriting-active' : ''}">
+              <textarea class="${state.handwritingOpen && state.handwritingTarget === 'prompter' ? 'prompter-handwriting-input' : ''}" id="inputTextArea" placeholder=" " ${state.handwritingOpen && state.handwritingTarget === 'prompter' ? 'readonly inputmode="none"' : 'inputmode="text"'}>${escapeHtml(text)}</textarea>
               <div id="fauxPlaceholder" class="custom-placeholder" style="display: ${text.length === 0 ? 'flex' : 'none'};"><span class="cursor"></span>請輸入訊息</div>
             </div>
             <button id="prompterHandwritingToggleBtn" class="prompter-handwriting-btn" type="button">✍ 手寫補字</button>
