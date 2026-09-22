@@ -390,11 +390,9 @@
 
     /* 手寫查字面板 */
     .handwriting-panel{ width:min(520px, calc(100vw - 32px)); margin:0 auto; padding:16px; background:rgba(15,23,42,.92); border:1px solid #334155; border-radius:22px; box-shadow:0 16px 38px rgba(0,0,0,.22); scroll-margin-top:0; }
-    .handwriting-panel.is-compact{ padding:10px 12px; }
-    .handwriting-panel.is-compact .handwriting-canvas-wrap,
-    .handwriting-panel.is-compact .handwriting-actions{ display:none; }
-    .handwriting-compact-tools{ display:none; }
-    .handwriting-panel.is-compact .handwriting-compact-tools{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:6px; }
+    .handwriting-panel.is-compact{ padding:12px; }
+    .handwriting-panel.is-compact .handwriting-canvas-wrap{ height:200px; min-height:0; aspect-ratio:auto; }
+    .handwriting-compact-tools{ display:none !important; }
     .handwriting-compact-tools button{ border:1px solid #475569; background:rgba(255,255,255,.07); color:#e2e8f0; border-radius:10px; padding:6px 10px; font-weight:800; cursor:pointer; }
     .handwriting-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px; color:#cbd5e1; }
     .handwriting-title{ font-size:1.12rem; color:#5eead4; letter-spacing:.04em; }
@@ -3988,7 +3986,7 @@ try {
         const chars = data?.[1]?.[0]?.[1] || data?.[1]?.[0]?.[0] || [];
         const candidates = Array.from(new Set(String(chars).split(''))).filter(ch => /\p{Script=Han}/u.test(ch)).slice(0,10);
         if (!candidates.length) throw new Error('no candidates');
-        state.handwritingCandidates = candidates; state.handwritingStatus = '揀一個字開始查詢'; state.handwritingCompact = true; render();
+        state.handwritingCandidates = candidates; state.handwritingStatus = '揀一個字開始查詢'; state.handwritingCompact = true; renderHandwritingKeepingScroll();
       } catch (err) {
         state.handwritingStatus = '暫時辨認唔到，請寫大啲、少啲筆劃，或者再試一次';
         state.handwritingCandidates = []; state.handwritingCompact = false; render();
@@ -4014,7 +4012,7 @@ try {
       state.handwritingCandidates = [];
       state.handwritingCompact = false;
       state.handwritingStatus = '已加入文章，可以繼續寫下一個字';
-      render();
+      renderHandwritingKeepingScroll();
       setTimeout(() => {
         // 手寫模式期間絕對唔 focus textarea，避免手機原生輸入法重新彈出及推郁畫面。
         const el = document.getElementById('inputTextArea');
@@ -4045,6 +4043,15 @@ try {
           }
         } catch(e) {}
       }, 60);
+    }
+    function renderHandwritingKeepingScroll(){
+      const content = document.querySelector('#splitPaneLeft .content');
+      const scrollTop = content ? content.scrollTop : null;
+      render();
+      if (content && scrollTop !== null) {
+        requestAnimationFrame(() => { content.scrollTop = scrollTop; });
+        setTimeout(() => { content.scrollTop = scrollTop; }, 50);
+      }
     }
 
     function bindPrompterHandwritingControls(){
