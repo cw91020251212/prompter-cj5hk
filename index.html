@@ -276,6 +276,8 @@
     }
     .prompter-area textarea:focus { border-color: #3b82f6; }
     .prompter-area textarea::placeholder { color: transparent; }
+    .prompter-handwriting-btn{ align-self:flex-start; margin-top:10px; padding:10px 16px; border:1px solid #2dd4bf; border-radius:12px; background:rgba(13,148,136,.18); color:#99f6e4; cursor:pointer; font-size:1rem; }
+    .prompter-handwriting-btn:hover{ background:rgba(13,148,136,.3); }
     
     .custom-placeholder {
       position: absolute; top: 18px; left: 18px;
@@ -2185,6 +2187,7 @@
       dictHistory: [],
       dictInput: '',
       handwritingOpen: false,
+      handwritingTarget: 'dict',
       handwritingStrokes: [],
       handwritingCandidates: [],
       handwritingStatus: '',
@@ -3009,6 +3012,7 @@ try {
         renderTypingMode();
       } else {
         renderMain();
+        bindPrompterHandwritingControls();
       }
       applyOverlayClasses();
       try { onboardingMaybe(); } catch(e) {}
@@ -3840,7 +3844,7 @@ try {
       const status = escapeHtml(state.handwritingStatus || '寫一個中文字，再撳「辨認」');
       const candidates = (state.handwritingCandidates || []).map((ch) => `<button type="button" class="handwriting-candidate" data-handwriting-char="${escapeHtml(ch)}" aria-label="選擇 ${escapeHtml(ch)}">${escapeHtml(ch)}</button>`).join('');
       return `<section class="handwriting-panel" aria-label="手寫查字">
-        <div class="handwriting-head"><span class="handwriting-title">✍ 手寫查字</span><span class="handwriting-hint">可用手指、滑鼠或觸控筆</span></div>
+        <div class="handwriting-head"><span class="handwriting-title">✍ ${state.handwritingTarget === 'prompter' ? '手寫補字' : '手寫查字'}</span><span class="handwriting-hint">可用手指、滑鼠或觸控筆</span></div>
         <div class="handwriting-canvas-wrap"><canvas id="handwritingCanvas" width="620" height="400"></canvas><div class="handwriting-grid"></div></div>
         <div class="handwriting-actions"><button type="button" id="handwritingClearBtn">清除重寫</button><button type="button" id="handwritingRecognizeBtn" class="primary" ${state.handwritingStrokes.length ? '' : 'disabled'}>辨認</button></div>
         <div class="handwriting-status" id="handwritingStatus">${status}</div>
@@ -3891,6 +3895,44 @@ try {
       }
     }
 
+    function insertHandwritingCharacter(ch){
+      const textarea = document.getElementById('inputTextArea');
+      if (!textarea || !ch) return;
+      const start = Number.isInteger(textarea.selectionStart) ? textarea.selectionStart : textarea.value.length;
+      const end = Number.isInteger(textarea.selectionEnd) ? textarea.selectionEnd : start;
+      const next = textarea.value.slice(0, start) + ch + textarea.value.slice(end);
+      const caret = start + ch.length;
+      state.inputText = next;
+      autoSavePrompterInput();
+      state.handwritingStrokes = [];
+      state.handwritingCandidates = [];
+      state.handwritingStatus = '已加入文章，可以繼續寫下一個字';
+      render();
+      setTimeout(() => {
+        const el = document.getElementById('inputTextArea');
+        if (el) { el.focus(); el.setSelectionRange(caret, caret); }
+        bindHandwriting();
+      }, 0);
+    }
+
+    function bindPrompterHandwritingControls(){
+      const btn = document.getElementById('prompterHandwritingToggleBtn');
+      if (!btn || btn.dataset.bound) return;
+      btn.dataset.bound = '1';
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const textarea = document.getElementById('inputTextArea');
+        state.handwritingTarget = 'prompter';
+        state.handwritingOpen = !state.handwritingOpen;
+        if (state.handwritingOpen) {
+          state.handwritingStrokes = []; state.handwritingCandidates = []; state.handwritingStatus = '';
+          state.handwritingCursor = Number.isInteger(textarea?.selectionStart) ? textarea.selectionStart : (textarea?.value.length || 0);
+        }
+        render();
+        if (state.handwritingOpen) setTimeout(bindHandwriting, 0);
+      });
+    }
+
     function bindHandwriting(){
       const canvas = document.getElementById('handwritingCanvas');
       if (!canvas || canvas.dataset.bound) return;
@@ -3901,7 +3943,11 @@ try {
       canvas.addEventListener('pointerup', end); canvas.addEventListener('pointercancel', end); canvas.addEventListener('pointerleave', end);
       document.getElementById('handwritingClearBtn')?.addEventListener('click', () => { state.handwritingStrokes=[]; state.handwritingCandidates=[]; state.handwritingStatus='寫一個中文字，再撳「辨認」'; render(); setTimeout(bindHandwriting,0); });
       document.getElementById('handwritingRecognizeBtn')?.addEventListener('click', recognizeHandwriting);
-      document.querySelectorAll('[data-handwriting-char]').forEach(el => el.addEventListener('click', () => { state.dictInput=el.dataset.handwritingChar||''; addToDictHistory(state.dictInput); state.handwritingOpen=false; state.handwritingCandidates=[]; state.handwritingStrokes=[]; state.handwritingStatus=''; render(); }));
+      document.querySelectorAll('[data-handwriting-char]').forEach(el => el.addEventListener('click', () => {
+        const ch = el.dataset.handwritingChar || '';
+        if (state.handwritingTarget === 'prompter') { insertHandwritingCharacter(ch); return; }
+        state.dictInput=ch; addToDictHistory(state.dictInput); state.handwritingOpen=false; state.handwritingCandidates=[]; state.handwritingStrokes=[]; state.handwritingStatus=''; render();
+      }));
       drawHandwritingCanvas(); updateHandwritingButtons();
     }
     function updateHandwritingButtons(){ const b=document.getElementById('handwritingRecognizeBtn'); if(b) b.disabled=!(state.handwritingStrokes||[]).length; }
@@ -3971,6 +4017,8 @@ try {
               <textarea id="inputTextArea" placeholder=" ">${escapeHtml(text)}</textarea>
               <div id="fauxPlaceholder" class="custom-placeholder" style="display: ${text.length === 0 ? 'flex' : 'none'};"><span class="cursor"></span>請輸入訊息</div>
             </div>
+            <button id="prompterHandwritingToggleBtn" class="prompter-handwriting-btn" type="button">✍ 手寫補字</button>
+            ${state.handwritingOpen && state.handwritingTarget === 'prompter' ? renderHandwritingHtml() : ''}
             <button id="startBtn" class="btn-primary" ${(!isReady || textArray.length===0)?'disabled':''}>
               ▶ 開始
             </button>
@@ -4159,6 +4207,8 @@ try {
               <textarea id="inputTextArea" placeholder=" ">${escapeHtml(text)}</textarea>
               <div id="fauxPlaceholder" class="custom-placeholder" style="display: ${text.length === 0 ? 'flex' : 'none'};"><span class="cursor"></span>請輸入訊息</div>
             </div>
+            <button id="prompterHandwritingToggleBtn" class="prompter-handwriting-btn" type="button">✍ 手寫補字</button>
+            ${state.handwritingOpen && state.handwritingTarget === 'prompter' ? renderHandwritingHtml() : ''}
             <button id="startBtn" class="btn-primary" ${(!isReady || textArray.length===0)?'disabled':''}>
               ▶ 開始
             </button>
