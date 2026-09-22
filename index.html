@@ -800,6 +800,9 @@
     .cex-chip:hover{ border-color:#34d399; background: rgba(52,211,153,0.16); }
     .cex-chips{ display:flex; flex-wrap:wrap; gap:10px; }
     .cex-muted{ color:#94a3b8; font-weight: 800; font-size: 1.05rem; padding: 6px 0; }
+    .cex-sub{ color:#64748b; font-size:.82rem; margin-top:7px; }
+    .cex-examples{ display:flex; flex-direction:column; gap:8px; }
+    .cex-example{ color:#dbeafe; background:rgba(30,64,175,.18); border-left:3px solid #60a5fa; border-radius:8px; padding:8px 10px; line-height:1.45; font-size:.98rem; }
 
     .dict-hitem{ display:inline-flex; align-items:stretch; border-radius: 999px; overflow:hidden; border: 1px solid #334155; background: rgba(255,255,255,0.04); }
     .dict-hpick{ appearance:none; border:0; background: transparent; color:#f8fafc; font-weight: 650; padding: 12px 16px; cursor:pointer; min-width: 56px; font-size: 1.6rem; line-height: 1.1; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
@@ -2463,7 +2466,7 @@ try {
     }
 
     // ---------- 在線增強（可用就用；冇網就保持離線） ----------
-    const ONLINE_EXTRA_VERSION = '20260627-online-extra-1';
+    const ONLINE_EXTRA_VERSION = '20260923-moedict-definitions-2';
     const ONLINE_EXTRA_LS_KEY = 'hk_char_online_extra_cache_v1';
 
     function loadOnlineExtraCache(){
@@ -2615,17 +2618,50 @@ try {
 
       return out;
     }
+    function cleanMoedictText(value){
+      return String(value || '').replace(/`/g, '').replace(/~/g, '').replace(/\s+/g, ' ').trim();
+    }
+    function parseMoedictData(data, ch){
+      const out = { pinyin:'', words:[], examples:[], definition:'' };
+      const entries = Array.isArray(data?.h) ? data.h : [];
+      const defs = [], examples = [];
+      for (const entry of entries) {
+        if (!out.pinyin && entry?.p) out.pinyin = cleanMoedictText(entry.p);
+        for (const sense of (Array.isArray(entry?.d) ? entry.d : [])) {
+          const meaning = cleanMoedictText(sense?.f);
+          if (meaning && !defs.includes(meaning)) defs.push(meaning);
+          for (const quote of (Array.isArray(sense?.q) ? sense.q : [])) {
+            const cleaned = cleanMoedictText(quote);
+            if (cleaned && !examples.includes(cleaned)) examples.push(cleaned);
+          }
+          for (const usage of (Array.isArray(sense?.e) ? sense.e : [])) {
+            const cleaned = cleanMoedictText(usage);
+            if (cleaned && !examples.includes(cleaned)) examples.push(cleaned);
+          }
+        }
+      }
+      out.definition = defs.slice(0, 5).join('；').slice(0, 220);
+      out.examples = examples.slice(0, 5).map(x => x.slice(0, 180));
+      const phrases = [];
+      for (const example of out.examples) {
+        for (const match of (example.match(/[「“『]([^」”』]{1,18})[」”』]/g) || [])) {
+          const phrase = match.slice(1, -1).trim();
+          if (phrase && (!ch || phrase.includes(ch))) phrases.push(phrase);
+        }
+      }
+      out.words = uniqList(phrases).slice(0, 12);
+      return out;
+    }
 
     async function fetchOnlineExtrasForChar(ch){
       const one = Array.from(String(ch||'').trim())[0];
       if (!one) return null;
 
-      // 1) Moedict: 拼音（最穩定係 json）
-      let pinyin = '';
+      // 1) Moedict：直接讀結構化字義、例句及拼音
+      let moedict = null;
       try {
         const j = await fetchJsonWithTimeout(`https://www.moedict.tw/a/${encodeURIComponent(one)}.json`, 4200);
-        const p = j?.h?.[0]?.p;
-        if (p) pinyin = String(p).trim();
+        moedict = parseMoedictData(j, one);
       } catch(e) {}
 
       // 2) Zdic: 常用词组 + 异体 + 普通話同音字
@@ -2638,12 +2674,13 @@ try {
       }
 
       const out = {
-        pinyin: pinyin || (zd?.pinyin || ''),
-        words: uniqList([...(zd?.words||[])]),
+        pinyin: moedict?.pinyin || (zd?.pinyin || ''),
+        words: uniqList([...(moedict?.words||[]), ...(zd?.words||[])]),
+        examples: uniqList([...(moedict?.examples||[])]),
         variants: uniqList([...(zd?.variants||[])]),
         mandarinHomophones: uniqList([...(zd?.mandarinHomophones||[])]),
         traditional: zd?.traditional || '',
-        definition: zd?.definition || ''
+        definition: moedict?.definition || zd?.definition || ''
       };
 
       return out;
@@ -2760,12 +2797,13 @@ try {
           st.className = 'cex-status ' + (hasNet ? '' : 'offline');
         }
 
-        const d0 = cached || { pinyin:'', words:[], variants:[], mandarinHomophones:[], traditional:'', definition:'' };
+        const d0 = cached || { pinyin:'', words:[], examples:[], variants:[], mandarinHomophones:[], traditional:'', definition:'' };
         const renderBody = (d) => {
           const pinyin = String(d?.pinyin || '').trim();
           const traditional = String(d?.traditional || '').trim();
           const definition = String(d?.definition || '').trim();
           const words = (d?.words || []).filter(Boolean).slice(0, 24);
+          const examples = (d?.examples || []).filter(Boolean).slice(0, 4);
           const variants = (d?.variants || []).slice(0, 24);
           const homo = (d?.mandarinHomophones || []).slice(0, 48);
 
@@ -2779,6 +2817,9 @@ try {
           const wordsHtml = words.length
             ? `<div class="cex-row"><div class="cex-row-title">常用用法／詞語</div><div class="cex-chips">${words.map(x=>`<button class="cex-chip" data-copy="${escapeHtml(x)}" title="點擊複製詞語">${escapeHtml(x)}</button>`).join('')}</div><div class="cex-sub">（由常用詞組推介；點一下可複製）</div></div>`
             : `<div class="cex-row"><div class="cex-row-title">常用用法／詞語</div><div class="cex-muted">（在線資料未提供常用詞組）</div></div>`;
+          const examplesHtml = examples.length
+            ? `<div class="cex-row"><div class="cex-row-title">例句／實際用法</div><div class="cex-examples">${examples.map(x=>`<div class="cex-example">${escapeHtml(x)}</div>`).join('')}</div></div>`
+            : '';
 
           const pinyinHtml = pinyin
             ? `<div class="cex-row"><div class="cex-row-title">拼音</div><div class="cex-chips"><button class="cex-chip" data-copy="${escapeHtml(pinyin)}" title="點擊複製">${escapeHtml(pinyin)}</button></div></div>`
@@ -2792,7 +2833,7 @@ try {
             ? `<div class="cex-row"><div class="cex-row-title">普通話同音字</div><div class="cex-chips">${homo.map(x=>`<button class="cex-chip" data-dict-pick="${escapeHtml(x)}" title="用呢個字再查">${escapeHtml(x)}</button>`).join('')}</div></div>`
             : `<div class="cex-row"><div class="cex-row-title">普通話同音字</div><div class="cex-muted">（未有）</div></div>`;
 
-          body.innerHTML = tradHtml + defHtml + wordsHtml + pinyinHtml + vHtml + hHtml;
+          body.innerHTML = tradHtml + defHtml + wordsHtml + examplesHtml + pinyinHtml + vHtml + hHtml;
         };
 
         renderBody(d0);
