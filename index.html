@@ -282,6 +282,11 @@
       padding-top: 18px; padding-bottom: 18px; resize: none; overflow-x: auto; overflow-y: hidden;
       white-space: nowrap; line-height: 1.4;
     }
+    .prompter-area.handwriting-session > .prompter-toolbar{ display:none !important; }
+    .prompter-area.handwriting-session > .prompter-input-wrap{
+      position: sticky; top: 0; z-index: 20; flex: 0 0 auto !important; min-height: 0 !important;
+      padding: 0 0 8px; background: #0b1220;
+    }
     .prompter-area textarea:focus { border-color: #3b82f6; }
     .prompter-area textarea::placeholder { color: transparent; }
     .prompter-handwriting-btn{ align-self:flex-start; margin-top:10px; padding:10px 16px; border:1px solid #2dd4bf; border-radius:12px; background:rgba(13,148,136,.18); color:#99f6e4; cursor:pointer; font-size:1rem; box-shadow:none; text-shadow:none; filter:none; }
@@ -4045,13 +4050,19 @@ try {
       }, 60);
     }
     function renderHandwritingKeepingScroll(){
-      const content = document.querySelector('#splitPaneLeft .content');
+      const content = document.querySelector('#splitPaneLeft .content') || document.querySelector('.app:not(.mode-dict) .content');
       const scrollTop = content ? content.scrollTop : null;
       render();
       if (content && scrollTop !== null) {
         requestAnimationFrame(() => { content.scrollTop = scrollTop; });
         setTimeout(() => { content.scrollTop = scrollTop; }, 50);
       }
+    }
+    function pinHandwritingInput(){
+      const content = document.querySelector('#splitPaneLeft .content') || document.querySelector('.app:not(.mode-dict) .content');
+      if (!content) return;
+      content.scrollTop = 0;
+      requestAnimationFrame(() => { content.scrollTop = 0; });
     }
 
     function bindPrompterHandwritingControls(){
@@ -4075,7 +4086,7 @@ try {
           bindHandwriting();
           const el = document.getElementById('inputTextArea');
           if (el) { try { el.blur(); el.scrollLeft = el.scrollWidth; } catch(e) {} }
-          scrollToHandwritingPanel();
+          pinHandwritingInput();
         }, 0);
       });
     }
@@ -4122,8 +4133,8 @@ try {
             <div class="content">
         `;
         leftHtml += `
-          <div class="prompter-area">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;">
+          <div class="prompter-area ${state.handwritingOpen && state.handwritingTarget === 'prompter' ? 'handwriting-session' : ''}">
+            <div class="prompter-toolbar" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;">
               <div style="display:flex;gap:8px;align-items:center;">
                 <button id="prompterTextSpeakBtn" class="prompter-speak-btn" aria-label="朗讀全文" ${text.trim() ? '' : 'disabled'} title="🔊 朗讀全文">
                   <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" style="width:26px;height:26px;">
@@ -4312,8 +4323,8 @@ try {
 
       if (active === 'prompter') {
         html += `
-          <div class="prompter-area">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;">
+          <div class="prompter-area ${state.handwritingOpen && state.handwritingTarget === 'prompter' ? 'handwriting-session' : ''}">
+            <div class="prompter-toolbar" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;">
               <div style="display:flex;gap:8px;align-items:center;">
                 <button id="prompterTextSpeakBtn" class="prompter-speak-btn" aria-label="朗讀全文" ${text.trim() ? '' : 'disabled'} title="🔊 朗讀全文">
                   <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" style="width:26px;height:26px;">
