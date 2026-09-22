@@ -3996,7 +3996,9 @@ try {
         if (!res.ok) throw new Error('recognition request failed');
         const data = await res.json();
         const chars = data?.[1]?.[0]?.[1] || data?.[1]?.[0]?.[0] || [];
-        const candidates = Array.from(new Set(String(chars).split(''))).filter(ch => /\p{Script=Han}/u.test(ch)).slice(0,10);
+        // Google 手寫辨認會回傳漢字及標點；唔可以只保留 Han，否則「，。！？：；」會全部被丟走。
+        const chinesePunctuation = '，。！？：；、（）「」『』【】《》〈〉…—～·﹁﹂﹃﹄！＂＃％＆＇＊＋－／＜＝＞？＠［］＼＾＿｀｛｜｝～　.,!?;:()[]{}<>-+/';
+        const candidates = Array.from(new Set(String(chars).split(''))).filter(ch => /\p{Script=Han}/u.test(ch) || chinesePunctuation.includes(ch)).slice(0,10);
         if (!candidates.length) throw new Error('no candidates');
         state.handwritingCandidates = candidates; state.handwritingStatus = '揀一個字開始查詢'; state.handwritingCompact = true; renderHandwritingKeepingScroll();
       } catch (err) {
