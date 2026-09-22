@@ -3992,8 +3992,13 @@ try {
     function insertHandwritingCharacter(ch){
       const textarea = document.getElementById('inputTextArea');
       if (!textarea || !ch) return;
-      const start = Number.isInteger(textarea.selectionStart) && textarea.selectionStart >= 0 ? textarea.selectionStart : (Number.isInteger(state.handwritingCursor) ? state.handwritingCursor : textarea.value.length);
-      const end = Number.isInteger(textarea.selectionEnd) ? textarea.selectionEnd : start;
+      // 手寫模式每次 render 都會重建 textarea，唔可以再信 selectionStart（會跌返 0）；使用獨立游標保持左至右輸入。
+      const start = state.handwritingTarget === 'prompter'
+        ? (Number.isInteger(state.handwritingCursor) ? state.handwritingCursor : textarea.value.length)
+        : (Number.isInteger(textarea.selectionStart) && textarea.selectionStart >= 0 ? textarea.selectionStart : textarea.value.length);
+      const end = state.handwritingTarget === 'prompter'
+        ? start
+        : (Number.isInteger(textarea.selectionEnd) ? textarea.selectionEnd : start);
       const next = textarea.value.slice(0, start) + ch + textarea.value.slice(end);
       const caret = start + ch.length;
       state.inputText = next;
@@ -4049,7 +4054,8 @@ try {
           // 先收起手機原生鍵盤；手寫板關閉之前，textarea 會保持 readonly。
           textarea?.blur();
           state.handwritingStrokes = []; state.handwritingCandidates = []; state.handwritingStatus = '';
-          state.handwritingCursor = Number.isInteger(textarea?.selectionStart) ? textarea.selectionStart : (textarea?.value.length || 0);
+          // 手寫係逐字追加，開啟時由文章尾部開始，避免 render 後 selection 跌返最左邊。
+          state.handwritingCursor = textarea?.value.length || 0;
         }
         render();
         if (state.handwritingOpen) setTimeout(() => {
