@@ -281,7 +281,7 @@
       height: calc((clamp(1.25rem, 2.2vw, 1.8rem) * var(--ui-scale) * 1.4) + 36px) !important;
       min-height: 0 !important; max-height: calc((clamp(1.25rem, 2.2vw, 1.8rem) * var(--ui-scale) * 1.4) + 36px) !important;
       padding-top: 18px; padding-bottom: 18px; resize: none; overflow-x: auto; overflow-y: hidden;
-      white-space: nowrap; line-height: 1.4;
+      white-space: nowrap; line-height: 1.4; caret-color: #5eead4;
     }
     .prompter-area.handwriting-session > .prompter-toolbar{ display:none !important; }
     .prompter-area.handwriting-session > .prompter-input-wrap{
@@ -4091,7 +4091,37 @@ try {
       requestAnimationFrame(() => { content.scrollTop = 0; });
     }
 
+    function bindPrompterHandwritingCaret(){
+      const textarea = document.getElementById('inputTextArea');
+      if (!textarea || textarea.dataset.handwritingCaretBound || !textarea.classList.contains('prompter-handwriting-input')) return;
+      textarea.dataset.handwritingCaretBound = '1';
+      textarea.addEventListener('click', (e) => {
+        if (!state.handwritingOpen || state.handwritingTarget !== 'prompter') return;
+        const value = textarea.value || '';
+        const rect = textarea.getBoundingClientRect();
+        const style = getComputedStyle(textarea);
+        const paddingLeft = parseFloat(style.paddingLeft) || 0;
+        const probe = document.createElement('canvas').getContext('2d');
+        if (!probe) return;
+        probe.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+        const x = Math.max(0, e.clientX - rect.left + textarea.scrollLeft - paddingLeft);
+        let caret = value.length;
+        for (let i = 0; i < value.length; i++) {
+          if (probe.measureText(value.slice(0, i + 1)).width >= x) {
+            const before = probe.measureText(value.slice(0, i)).width;
+            const after = probe.measureText(value.slice(0, i + 1)).width;
+            caret = x - before < after - x ? i : i + 1;
+            break;
+          }
+        }
+        state.handwritingCursor = caret;
+        textarea.focus({ preventScroll: true });
+        try { textarea.setSelectionRange(caret, caret); } catch(e) {}
+      });
+    }
+
     function bindPrompterHandwritingControls(){
+      bindPrompterHandwritingCaret();
       const btn = document.getElementById('prompterHandwritingToggleBtn');
       if (!btn || btn.dataset.bound) return;
       btn.dataset.bound = '1';
