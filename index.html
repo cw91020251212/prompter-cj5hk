@@ -2238,10 +2238,11 @@
       dictInput: '',
       handwritingOpen: false,
       handwritingTarget: 'dict',
-      handwritingStrokes: [],
-      handwritingCandidates: [],
-      handwritingStatus: '',
-      inputMethod: 'cangjie',
+	      handwritingStrokes: [],
+	      handwritingCandidates: [],
+	      handwritingStatus: '',
+	      handwritingRecognizing: false,
+	      inputMethod: 'cangjie',
       showRadical: true,
 
       // ===== 英文倉頡碼朗讀（打字模式專用） =====
@@ -3969,8 +3970,8 @@ try {
       const candidates = (state.handwritingCandidates || []).map((ch) => `<button type="button" class="handwriting-candidate" data-handwriting-char="${escapeHtml(ch)}" aria-label="選擇 ${escapeHtml(ch)}">${escapeHtml(ch)}</button>`).join('');
       const compactClass = state.handwritingCompact ? ' is-compact' : '';
       const compactHeightStyle = state.handwritingCompactHeight ? ` style="--handwriting-compact-height:${state.handwritingCompactHeight}px"` : '';
-      return `<section id="handwritingPanel" class="handwriting-panel${compactClass}"${compactHeightStyle} aria-label="手寫查字">
-        <div class="handwriting-head"><span class="handwriting-title">✍ ${state.handwritingTarget === 'prompter' ? '手寫補字' : '手寫查字'}</span><span class="handwriting-hint">可用手指、滑鼠或觸控筆</span><div class="handwriting-tools"><button type="button" class="handwriting-undo-btn" ${state.handwritingStrokes.length ? '' : 'disabled'}>↶ 撤銷一筆</button><button type="button" class="handwriting-clear-btn">清除</button><button type="button" class="handwriting-recognize-btn primary" ${state.handwritingStrokes.length ? '' : 'disabled'}>辨認</button></div></div>
+      return `<section id="handwritingPanel" class="handwriting-panel${compactClass}"${compactHeightStyle} aria-label="手寫查字" aria-busy="${state.handwritingRecognizing ? 'true' : 'false'}">
+        <div class="handwriting-head"><span class="handwriting-title">✍ ${state.handwritingTarget === 'prompter' ? '手寫補字' : '手寫查字'}</span><span class="handwriting-hint">可用手指、滑鼠或觸控筆</span><div class="handwriting-tools"><button type="button" class="handwriting-undo-btn" ${state.handwritingStrokes.length && !state.handwritingRecognizing ? '' : 'disabled'}>↶ 撤銷一筆</button><button type="button" class="handwriting-clear-btn" ${state.handwritingRecognizing ? 'disabled' : ''}>清除</button><button type="button" class="handwriting-recognize-btn primary" ${state.handwritingStrokes.length && !state.handwritingRecognizing && !state.handwritingCandidates.length ? '' : 'disabled'}>${state.handwritingRecognizing ? '辨認中…' : '辨認'}</button></div></div>
         <div class="handwriting-canvas-wrap"><canvas id="handwritingCanvas" width="620" height="400"></canvas><div class="handwriting-grid"></div></div>
         <div class="handwriting-status" id="handwritingStatus">${status}</div>
         <div class="handwriting-candidates" id="handwritingCandidates">${candidates}</div>
@@ -4010,7 +4011,7 @@ try {
 
     async function recognizeHandwriting(){
       const strokes = state.handwritingStrokes || [];
-      if (!strokes.length) return;
+      if (!strokes.length || state.handwritingRecognizing || state.handwritingCandidates.length) return;
       if (state.handwritingTarget === 'prompter' && isHandwritingSpaceGesture(strokes)) {
         insertHandwritingCharacter(' ');
         return;
@@ -4018,11 +4019,9 @@ try {
       const canvasWrap = document.querySelector('#handwritingPanel .handwriting-canvas-wrap');
       const originalCanvasHeight = canvasWrap ? canvasWrap.getBoundingClientRect().height : 0;
       if (originalCanvasHeight > 0) state.handwritingCompactHeight = Math.max(80, Math.round(originalCanvasHeight / 2));
-      const status = document.getElementById('handwritingStatus');
-      const btn = document.getElementById('handwritingRecognizeBtn');
-      if (btn) btn.disabled = true;
-      if (status) status.textContent = '辨認中……';
+      state.handwritingRecognizing = true;
       state.handwritingStatus = '辨認中……';
+      renderHandwritingKeepingScroll();
       try {
         const ink = strokes.map(stroke => [stroke.map(p=>Math.round(p[0])), stroke.map(p=>Math.round(p[1])), stroke.map(p=>Math.round(p[2]))]);
         const payload = { device:navigator.userAgent, options:'enable_pre_space', requests:[{ writing_guide:{writing_area_width:620,writing_area_height:400}, ink, language:'zh-Hant' }] };
@@ -4034,10 +4033,18 @@ try {
         const chinesePunctuation = '，。！？：；、（）「」『』【】《》〈〉…—～·﹁﹂﹃﹄！＂＃％＆＇＊＋－／＜＝＞？＠［］＼＾＿｀｛｜｝～　.,!?;:()[]{}<>-+/';
         const candidates = Array.from(new Set(String(chars).split(''))).filter(ch => /\p{Script=Han}/u.test(ch) || chinesePunctuation.includes(ch)).slice(0,10);
         if (!candidates.length) throw new Error('no candidates');
-        state.handwritingCandidates = candidates; state.handwritingStatus = '揀一個字開始查詢'; state.handwritingCompact = true; renderHandwritingKeepingScroll();
+        state.handwritingCandidates = candidates;
+        state.handwritingStatus = '揀一個字開始查詢';
+        state.handwritingCompact = true;
+        state.handwritingRecognizing = false;
+        renderHandwritingKeepingScroll();
       } catch (err) {
         state.handwritingStatus = '暫時辨認唔到，請寫大啲、少啲筆劃，或者再試一次';
-        state.handwritingCandidates = []; state.handwritingCompact = false; state.handwritingCompactHeight = 0; render();
+        state.handwritingCandidates = [];
+        state.handwritingCompact = false;
+        state.handwritingCompactHeight = 0;
+        state.handwritingRecognizing = false;
+        renderHandwritingKeepingScroll();
       }
     }
 
@@ -4058,6 +4065,7 @@ try {
       autoSavePrompterInput();
       state.handwritingStrokes = [];
       state.handwritingCandidates = [];
+      state.handwritingRecognizing = false;
       state.handwritingCompact = false;
       state.handwritingCompactHeight = 0;
       state.handwritingStatus = '已加入文章，可以繼續寫下一個字';
@@ -4151,7 +4159,7 @@ try {
         if (state.handwritingOpen) {
           // 先收起手機原生鍵盤；手寫板關閉之前，textarea 會保持 readonly。
           textarea?.blur();
-          state.handwritingStrokes = []; state.handwritingCandidates = []; state.handwritingStatus = ''; state.handwritingCompact = false; state.handwritingCompactHeight = 0;
+          state.handwritingStrokes = []; state.handwritingCandidates = []; state.handwritingRecognizing = false; state.handwritingStatus = ''; state.handwritingCompact = false; state.handwritingCompactHeight = 0;
           // 手寫係逐字追加，開啟時由文章尾部開始，避免 render 後 selection 跌返最左邊。
           state.handwritingCursor = textarea?.value.length || 0;
         }
@@ -4172,16 +4180,16 @@ try {
         canvas.addEventListener('pointerdown', e => { e.preventDefault(); drawing=true; canvas.setPointerCapture?.(e.pointerId); state.handwritingStrokes.push([handwritingPoint(e,canvas)]); drawHandwritingCanvas(); updateHandwritingButtons(); });
         canvas.addEventListener('pointermove', e => { if (!drawing) return; e.preventDefault(); const stroke=state.handwritingStrokes[state.handwritingStrokes.length-1]; stroke.push(handwritingPoint(e,canvas)); drawHandwritingCanvas(); });
         const end = () => { drawing=false; };
-        canvas.addEventListener('pointerup', end); canvas.addEventListener('pointercancel', end); canvas.addEventListener('pointerleave', end);
+        canvas.addEventListener('pointerup', end); canvas.addEventListener('pointercancel', end); canvas.addEventListener('lostpointercapture', end);
       });
-      document.querySelectorAll('.handwriting-clear-btn').forEach(btn => { if (!btn.dataset.bound) { btn.dataset.bound='1'; btn.addEventListener('click', () => { state.handwritingStrokes=[]; state.handwritingCandidates=[]; state.handwritingCompact=false; state.handwritingCompactHeight=0; state.handwritingStatus='寫一個中文字，再撳「辨認」'; render(); setTimeout(bindHandwriting,0); }); } });
+      document.querySelectorAll('.handwriting-clear-btn').forEach(btn => { if (!btn.dataset.bound) { btn.dataset.bound='1'; btn.addEventListener('click', () => { if (state.handwritingRecognizing) return; state.handwritingStrokes=[]; state.handwritingCandidates=[]; state.handwritingRecognizing=false; state.handwritingCompact=false; state.handwritingCompactHeight=0; state.handwritingStatus='寫一個中文字，再撳「辨認」'; render(); setTimeout(bindHandwriting,0); }); } });
       document.querySelectorAll('.handwriting-undo-btn').forEach(btn => { if (!btn.dataset.bound) { btn.dataset.bound='1'; btn.addEventListener('click', () => { state.handwritingStrokes = (state.handwritingStrokes || []).slice(0, -1); state.handwritingCandidates=[]; drawHandwritingCanvas(); updateHandwritingButtons(); }); } });
       document.querySelectorAll('.handwriting-recognize-btn').forEach(btn => { if (!btn.dataset.bound) { btn.dataset.bound='1'; btn.addEventListener('click', recognizeHandwriting); } });
       document.getElementById('handwritingExpandBtn')?.addEventListener('click', () => { state.handwritingCompact=false; state.handwritingCompactHeight=0; state.handwritingCandidates=[]; state.handwritingStatus='寫一個中文字，再撳「辨認」'; render(); setTimeout(bindHandwriting,0); });
       document.querySelectorAll('[data-handwriting-char]').forEach(el => el.addEventListener('click', () => {
         const ch = el.dataset.handwritingChar || '';
         if (state.handwritingTarget === 'prompter') { insertHandwritingCharacter(ch); return; }
-        state.dictInput=ch; addToDictHistory(state.dictInput); state.handwritingOpen=false; state.handwritingCandidates=[]; state.handwritingStrokes=[]; state.handwritingStatus=''; render();
+        state.dictInput=ch; addToDictHistory(state.dictInput); state.handwritingOpen=false; state.handwritingCandidates=[]; state.handwritingStrokes=[]; state.handwritingRecognizing=false; state.handwritingStatus=''; render();
       }));
       drawHandwritingCanvas(); updateHandwritingButtons();
     }
@@ -4839,7 +4847,7 @@ try {
       if (handwritingToggle) {
         handwritingToggle.addEventListener('click', (e) => {
           e.preventDefault(); state.handwritingOpen = !state.handwritingOpen;
-          if (!state.handwritingOpen) { state.handwritingCandidates=[]; state.handwritingStrokes=[]; state.handwritingStatus=''; }
+          if (!state.handwritingOpen) { state.handwritingCandidates=[]; state.handwritingStrokes=[]; state.handwritingRecognizing=false; state.handwritingStatus=''; }
           render(); if (state.handwritingOpen) setTimeout(bindHandwriting, 0);
         });
       }
@@ -5544,7 +5552,7 @@ try {
       if (handwritingToggle) {
         handwritingToggle.addEventListener('click', (e) => {
           e.preventDefault(); state.handwritingOpen = !state.handwritingOpen;
-          if (!state.handwritingOpen) { state.handwritingCandidates=[]; state.handwritingStrokes=[]; state.handwritingStatus=''; }
+          if (!state.handwritingOpen) { state.handwritingCandidates=[]; state.handwritingStrokes=[]; state.handwritingRecognizing=false; state.handwritingStatus=''; }
           render(); if (state.handwritingOpen) setTimeout(bindHandwriting, 0);
         });
       }
