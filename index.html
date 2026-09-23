@@ -1583,6 +1583,21 @@
         min-height: 120px;
         resize: none;
       }
+      /* 手寫筆模式覆寫通用 flex/height 規則，避免重繪後輸入欄被重新拉高。 */
+      .split-pane-left .prompter-area.handwriting-session > .prompter-input-wrap.handwriting-active {
+        flex: 0 0 auto !important;
+        min-height: 0 !important;
+      }
+      .split-pane-left .prompter-area.handwriting-session textarea.prompter-handwriting-input {
+        height: calc((clamp(1.25rem, 2.2vw, 1.8rem) * var(--ui-scale) * 1.4) + 36px) !important;
+        min-height: 0 !important;
+        max-height: calc((clamp(1.25rem, 2.2vw, 1.8rem) * var(--ui-scale) * 1.4) + 36px) !important;
+        flex: none !important;
+        resize: none;
+        overflow-x: auto;
+        overflow-y: hidden;
+        white-space: nowrap;
+      }
     }
 
     /* 窄螢幕（< 768px）：維持原有單欄，split-layout 退化為單欄 */
