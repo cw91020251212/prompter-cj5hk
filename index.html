@@ -3994,9 +3994,24 @@ try {
       return [Math.max(0, Math.min(canvas.width, (e.clientX-r.left)*canvas.width/r.width)), Math.max(0, Math.min(canvas.height, (e.clientY-r.top)*canvas.height/r.height)), Date.now()];
     }
 
+    function isHandwritingSpaceGesture(strokes){
+      if (strokes.length !== 1 || strokes[0].length < 2) return false;
+      const points = strokes[0];
+      const xs = points.map(p => p[0]);
+      const ys = points.map(p => p[1]);
+      const width = Math.max(...xs) - Math.min(...xs);
+      const height = Math.max(...ys) - Math.min(...ys);
+      // 右至左、較長而平的短線代表空格，避免同普通由左至右寫「一」混淆。
+      return width >= 90 && height <= 45 && points[0][0] - points[points.length - 1][0] >= 40;
+    }
+
     async function recognizeHandwriting(){
       const strokes = state.handwritingStrokes || [];
       if (!strokes.length) return;
+      if (state.handwritingTarget === 'prompter' && isHandwritingSpaceGesture(strokes)) {
+        insertHandwritingCharacter(' ');
+        return;
+      }
       const canvasWrap = document.querySelector('#handwritingPanel .handwriting-canvas-wrap');
       const originalCanvasHeight = canvasWrap ? canvasWrap.getBoundingClientRect().height : 0;
       if (originalCanvasHeight > 0) state.handwritingCompactHeight = Math.max(80, Math.round(originalCanvasHeight / 2));
