@@ -1,6 +1,6 @@
 // Patch 20260628-patch4：修復 GitHub Pages 長期用舊版（SW 自己都被 cache 住）
 // 重點：sw.js / index.html 一律 network-first（更新優先），其他資源先 cache-first。
-const CACHE_NAME = 'cangjie-v24-speaker-github-fix';
+const CACHE_NAME = 'cangjie-v25-autofill-safe-editors';
 const ASSETS = [
   './',
   './index.html',

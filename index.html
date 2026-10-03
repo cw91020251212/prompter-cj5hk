@@ -1713,7 +1713,7 @@
 		    <button id="closeJyutping" class="jyutping-close" aria-label="關閉">✕</button>
 		  </div>
 		  <div class="jyutping-input-wrap">
-		    <input type="text" id="jyutpingInput" class="jyutping-input" placeholder="輸入中文字（可多字，例如：我哋）" autocomplete="off">
+		    <div id="jyutpingInput" class="jyutping-input" contenteditable="plaintext-only" role="textbox" aria-multiline="false" inputmode="text" data-autofill-safe-editor="1" data-placeholder="輸入中文字（可多字，例如：我哋）" autocomplete="off"></div>
 		  </div>
 			  <div class="jyutping-actions">
 			    <button id="jyutpingClearBtn">清空</button>
@@ -4314,7 +4314,7 @@ try {
           <div class="dict-area">
             <div class="dict-input-row">
               <div id="dictInputWrap" class="dict-input-wrap ${dictVal?'has-value':''}">
-                <input id="dictInput" class="dict-input" type="text" maxlength="1" placeholder="" value="${escapeHtml(dictVal)}">
+                <div id="dictInput" class="dict-input" contenteditable="plaintext-only" role="textbox" aria-multiline="false" inputmode="text" data-autofill-safe-editor="1">${escapeHtml(dictVal)}</div>
                 <div class="dict-pen" aria-hidden="true">
                   <div class="dict-caret"></div>
                 </div>
@@ -4498,7 +4498,7 @@ try {
           <div class="dict-area">
             <div class="dict-input-row">
               <div id="dictInputWrap" class="dict-input-wrap ${dictVal?'has-value':''}">
-                <input id="dictInput" class="dict-input" type="text" maxlength="1" placeholder="" value="${escapeHtml(dictVal)}">
+                <div id="dictInput" class="dict-input" contenteditable="plaintext-only" role="textbox" aria-multiline="false" inputmode="text" data-autofill-safe-editor="1">${escapeHtml(dictVal)}</div>
                 <div class="dict-pen" aria-hidden="true">
                   <div class="dict-caret"></div>
                 </div>
@@ -4535,6 +4535,26 @@ try {
       }
       html += `</div></div>`;
       root.innerHTML = html;
+      // Avoid Android Chrome Autofill toolbar icons on ordinary text editors.
+      ['dictInput', 'jyutpingInput'].forEach((id) => {
+        const editor = document.getElementById(id);
+        if (!editor || editor.dataset.autofillSafeReady === '1') return;
+        editor.dataset.autofillSafeReady = '1';
+        editor.setAttribute('contenteditable', 'plaintext-only');
+        editor.setAttribute('role', 'textbox');
+        editor.setAttribute('aria-multiline', 'false');
+        editor.setAttribute('inputmode', 'text');
+        editor.setAttribute('tabindex', '0');
+        editor.setAttribute('autocomplete', 'off');
+        Object.defineProperty(editor, 'value', {
+          configurable: true,
+          get() { return this.textContent || ''; },
+          set(value) { this.textContent = value == null ? '' : String(value); }
+        });
+        editor.addEventListener('beforeinput', (event) => {
+          if (event.inputType === 'insertParagraph' || event.inputType === 'insertLineBreak') event.preventDefault();
+        });
+      });
 
       // 只在「查單字」頁面期間，為 body 加一個狀態 class
       // 用途：讓固定定位（fixed）的元件（如右下角 🔍、同音字面板）都可以只在查單字時套用墨綠主題
@@ -4815,7 +4835,15 @@ try {
           // 撳查單字大輸入框只應該開鍵盤，唔應該開「粵語同音字」視窗
           try { window.__closeJyutpingPanel && window.__closeJyutpingPanel(); } catch(err) {}
           /* 近音掣交畀鍵盤偵測統一控制：鍵盤開先隱藏，收起自動顯示返 */
-          e.target.select();
+          if (typeof e.target.select === 'function') e.target.select();
+          else {
+            e.target.focus();
+            const range = document.createRange();
+            range.selectNodeContents(e.target);
+            const selection = window.getSelection();
+            selection?.removeAllRanges();
+            selection?.addRange(range);
+          }
         });
         dictInput.addEventListener('click', () => {
           // 保險：就算之前視窗殘留 open，都喺撳輸入框時關返
@@ -5533,7 +5561,15 @@ try {
           // 撳查單字大輸入框只應該開鍵盤，唔應該開「粵語同音字」視窗
           try { window.__closeJyutpingPanel && window.__closeJyutpingPanel(); } catch(err) {}
           /* 近音掣交畀鍵盤偵測統一控制：鍵盤開先隱藏，收起自動顯示返 */
-          e.target.select();
+          if (typeof e.target.select === 'function') e.target.select();
+          else {
+            e.target.focus();
+            const range = document.createRange();
+            range.selectNodeContents(e.target);
+            const selection = window.getSelection();
+            selection?.removeAllRanges();
+            selection?.addRange(range);
+          }
         });
         dictInput.addEventListener('click', () => {
           // 保險：就算之前視窗殘留 open，都喺撳輸入框時關返
